@@ -25,7 +25,7 @@ public:
 	char* getBufferAddr();
 	void setBufferAddr(char* bufferAddr);
 
-	pair<MyDB_TablePtr, long> getPageId;
+	pair<MyDB_TablePtr, long> getPageId();
 
 	int getSlotId();
 	void setSlotId(int slotId);
