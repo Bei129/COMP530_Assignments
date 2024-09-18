@@ -23,8 +23,7 @@ MyDB_PageHandle MyDB_BufferManager::getPage(MyDB_TablePtr whichTable, long i) {
         return it->second;
     }
     MyDB_Page* newPageObj = new MyDB_Page(whichTable, i, pageSize);
-    newPageObj->setBufferAddr(new char[pageSize]); 
-    MyDB_PageHandle newPage = make_shared<MyDB_PageHandleBase>(newPageObj);
+    MyDB_PageHandle newPage = make_shared<MyDB_PageHandleBase>(newPageObj, this);
     pageMap[pageId] = newPage;
     lruList.push_front(newPage);
     if (lruList.size() > numPages) {
@@ -35,7 +34,7 @@ MyDB_PageHandle MyDB_BufferManager::getPage(MyDB_TablePtr whichTable, long i) {
 
 MyDB_PageHandle MyDB_BufferManager :: getPage () {
 	MyDB_Page* tempPageObj = new MyDB_Page(pageSize); 
-    MyDB_PageHandle tempPage = make_shared<MyDB_PageHandleBase>(tempPageObj);
+    MyDB_PageHandle tempPage = make_shared<MyDB_PageHandleBase>(tempPageObj, this);
     lruList.push_front(tempPage);
     if (lruList.size() > numPages) {
         evictPage();
@@ -44,38 +43,43 @@ MyDB_PageHandle MyDB_BufferManager :: getPage () {
 }
 
 MyDB_PageHandle MyDB_BufferManager :: getPinnedPage (MyDB_TablePtr whichTable, long i) {
-	MyDB_PageHandle page = getPage(whichTable, i);
-    page->getBytes();
-    return page;
+	MyDB_PageHandle ph = getPage(whichTable, i);
+    ph->getPage()->setPinned();
+    return ph;
 }
 
 MyDB_PageHandle MyDB_BufferManager :: getPinnedPage () {
-	MyDB_PageHandle page = getPage();
-    page->getBytes(); 
-    return page;	
+	MyDB_PageHandle ph = getPage();
+    ph->getPage()->setPinned(); 
+    return ph;	
 }
 
 void MyDB_BufferManager :: unpin (MyDB_PageHandle unpinMe) {
+    unpinMe->getPage()->undoPinned();
 }
 
 MyDB_BufferManager::MyDB_BufferManager(size_t pageSize, size_t numPages, string tempFile)
-    : pageSize(pageSize), numPages(numPages), tempFile(tempFile) {}
-
-MyDB_BufferManager::~MyDB_BufferManager() {
-    for (auto &page : lruList) {
-        if (page->isDirty()) {
-            int fd = open(tempFile.c_str(), O_WRONLY | O_CREAT, 0666);
-            if (fd != -1) {
-                lseek(fd, page->getSlotId() * pageSize, SEEK_SET);
-                write(fd, page->getBytes(), pageSize);
-                close(fd);
-            }
-        }
+    : pageSize(pageSize), numPages(numPages), tempFile(tempFile) {
+    pageMap = unordered_map<pair<MyDB_TablePtr, long>, MyDB_PageHandle, pair_hash>();
+    buffer = (char*)malloc(pageSize * numPages);
+    char* addr = buffer;
+    for (int i = 0; i < numPages; i++) {
+        bufferSpace.push_back(addr);
+        addr += pageSize;
     }
 }
 
-void MyDB_BufferManager::evictPage() {
+MyDB_BufferManager::~MyDB_BufferManager() {
+    for (auto &page : lruList) {
+        writeToDisk(page->getPage());
+    }
+    free(buffer);
+}
+
+char* MyDB_BufferManager::evictPage() {
     MyDB_PageHandle lruPage = lruList.back();
+    char* evictAddr = lruPage->getPage()->getBufferAddr();
+    //lruPage->getPage()->setBufferAddr(nullptr);
     if (!lruPage->isPinned()) {
         lruList.pop_back();
         auto it = pageMap.find(lruPage->getPageId());
@@ -83,12 +87,60 @@ void MyDB_BufferManager::evictPage() {
             delete[] static_cast<char*>(lruPage->getBytes());
             pageMap.erase(it);
         }
-        if (lruPage->isDirty()) {
+        writeToDisk(lruPage->getPage());
+        /*if (lruPage->isDirty()) {
             int fd = open(tempFile.c_str(), O_WRONLY | O_CREAT, 0666);
             if (fd != -1) {
                 lseek(fd, lruPage->getSlotId() * pageSize, SEEK_SET);
                 write(fd, lruPage->getBytes(), pageSize);
                 close(fd);
+            }
+        }*/
+    }
+    return evictAddr;
+}
+
+void MyDB_BufferManager::readFromDisk(MyDB_Page* page) {
+    if (page->isAnonymous()) {
+        int fd = open(tempFile.c_str(), O_RDONLY | O_CREAT | O_FSYNC, 0666);
+        if (fd != -1) {
+            lseek(fd, page->getSlotId() * pageSize, SEEK_SET);
+            read(fd, page->getBufferAddr(), pageSize);
+            close(fd);
+            page->setDirty(false);
+        }
+    }
+    else {
+        int fd = open(page->getPageId().first->getStorageLoc().c_str(), O_RDONLY | O_CREAT | O_FSYNC, 0666);
+        if (fd != -1) {
+            lseek(fd, page->getPageId().second * pageSize, SEEK_SET);
+            read(fd, page->getBufferAddr(), pageSize);
+            close(fd);
+            page->setDirty(false);
+        }
+    }
+}
+
+void MyDB_BufferManager::writeToDisk(MyDB_Page* page) {
+    if (page->isAnonymous()) {
+        if (page->isDirty()) {
+            int fd = open(tempFile.c_str(), O_WRONLY | O_CREAT | O_FSYNC, 0666);
+            if (fd != -1) {
+                lseek(fd, page->getSlotId() * pageSize, SEEK_SET);
+                write(fd, page->getBufferAddr(), pageSize);
+                close(fd);
+                page->setDirty(false);
+            }
+        }
+    }
+    else {
+        if (page->isDirty()) {
+            int fd = open(page->getPageId().first->getStorageLoc().c_str(), O_WRONLY | O_CREAT | O_FSYNC, 0666);
+            if (fd != -1) {
+                lseek(fd, page->getPageId().second * pageSize, SEEK_SET);
+                write(fd, page->getBufferAddr(), pageSize);
+                close(fd);
+                page->setDirty(false);
             }
         }
     }

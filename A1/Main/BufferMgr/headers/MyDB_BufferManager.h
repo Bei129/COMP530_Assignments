@@ -3,7 +3,9 @@
 #define BUFFER_MGR_H
 
 #include "MyDB_Table.h"
+#include "MyDB_Page.h"
 #include <unordered_map>
+#include <vector>
 #include <list>
 #include <string>
 
@@ -60,6 +62,11 @@ public:
 	~MyDB_BufferManager ();
 
 	// FEEL FREE TO ADD ADDITIONAL PUBLIC METHODS 
+	char* evictPage();
+	void writeToDisk(MyDB_Page* page);
+	void readFromDisk(MyDB_Page* page);
+
+	vector<char*> bufferSpace;
 
 private:
 
@@ -67,11 +74,13 @@ private:
 	size_t pageSize;  
 	size_t numPages;
 	string tempFile; 
+	char* buffer;
+
+	// index temp file
+	int slotId = 0;
 
 	unordered_map<pair<MyDB_TablePtr, long>, MyDB_PageHandle, pair_hash> pageMap;
     list<MyDB_PageHandle> lruList;
-
-	void evictPage();
 
 };
 

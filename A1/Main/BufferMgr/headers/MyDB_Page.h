@@ -1,7 +1,6 @@
 #ifndef PAGE_H
 #define PAGE_H
 
-#include "MyDB_BufferManager.h"
 #include "MyDB_Table.h"
 
 using namespace std;
@@ -15,6 +14,7 @@ private:
 	bool anonymous;
 	bool pinned = false;
 	bool dirty = false;
+	int refCount = 0;
 	size_t pageSize;
 public:
 	// Initailize anonymous page
