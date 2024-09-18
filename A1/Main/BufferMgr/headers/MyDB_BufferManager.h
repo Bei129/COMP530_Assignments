@@ -2,10 +2,22 @@
 #ifndef BUFFER_MGR_H
 #define BUFFER_MGR_H
 
-#include "MyDB_PageHandle.h"
 #include "MyDB_Table.h"
+#include <unordered_map>
+#include <list>
+#include <string>
 
 using namespace std;
+
+class MyDB_PageHandleBase;
+typedef shared_ptr<MyDB_PageHandleBase> MyDB_PageHandle;
+
+struct pair_hash {
+    template <class T1, class T2>
+    std::size_t operator() (const std::pair<T1, T2>& pair) const {
+        return std::hash<T1>()(pair.first) ^ std::hash<T2>()(pair.second);
+    }
+};
 
 class MyDB_BufferManager {
 
@@ -52,6 +64,14 @@ public:
 private:
 
 	// YOUR STUFF HERE
+	size_t pageSize;  
+	size_t numPages;
+	string tempFile; 
+
+	unordered_map<pair<MyDB_TablePtr, long>, MyDB_PageHandle, pair_hash> pageMap;
+    list<MyDB_PageHandle> lruList;
+
+	void evictPage();
 
 };
 

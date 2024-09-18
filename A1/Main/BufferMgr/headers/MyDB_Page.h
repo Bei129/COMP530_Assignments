@@ -15,12 +15,13 @@ private:
 	bool anonymous;
 	bool pinned = false;
 	bool dirty = false;
+	size_t pageSize;
 public:
 	// Initailize anonymous page
-	MyDB_Page();
+	MyDB_Page(size_t pageSize);
 
 	// Initialize non-anonymous page
-	MyDB_Page(MyDB_TablePtr whichTable, long i);
+	MyDB_Page(MyDB_TablePtr whichTable, long i, size_t pageSize);
 
 	char* getBufferAddr();
 	void setBufferAddr(char* bufferAddr);
@@ -38,6 +39,8 @@ public:
 
 	bool isDirty();
 	void setDirty(bool dirty);
+
+	size_t getPageSize() const {return pageSize; }
 };
 
 #endif

@@ -2,19 +2,28 @@
 #define PAGE_C
 
 #include "MyDB_Page.h"
+#include <iostream>
 
-MyDB_Page::MyDB_Page() {
+MyDB_Page::MyDB_Page(size_t pageSize)  {
 	this->anonymous = true;
+	this->pageSize = pageSize;
+	this->bufferAddr = new char[pageSize];  
 }
 
 // Initialize non-anonymous page
-MyDB_Page::MyDB_Page(MyDB_TablePtr whichTable, long i) {
-	this->anonymous = false;
-	this->pageId.first = whichTable;
-	this->pageId.second = i;
+MyDB_Page::MyDB_Page(MyDB_TablePtr whichTable, long i, size_t pageSize) {
+    this->anonymous = false;
+    this->pageId.first = whichTable;
+    this->pageId.second = i;
+    this->pageSize = pageSize;
+    this->bufferAddr = new char[pageSize]; 
 }
 
 char* MyDB_Page::getBufferAddr() {
+	if (!bufferAddr) {
+        cerr << "Error: Buffer address is not initialized!" << endl;
+        exit(1); 
+    }
 	return bufferAddr;
 }
 void MyDB_Page::setBufferAddr(char* bufferAddr) {
