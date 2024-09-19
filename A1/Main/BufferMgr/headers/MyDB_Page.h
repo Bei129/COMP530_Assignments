@@ -41,6 +41,10 @@ public:
 	void setDirty(bool dirty);
 
 	size_t getPageSize() const {return pageSize; }
+
+	int getRefCount();
+	void decRefCount();
+	void incRefCount();
 };
 
 #endif

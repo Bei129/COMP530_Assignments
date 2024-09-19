@@ -56,4 +56,16 @@ void MyDB_Page::setDirty(bool dirty) {
 	this->dirty = dirty;
 }
 
+void MyDB_Page::decRefCount() {
+	this->refCount--;
+}
+
+void MyDB_Page::incRefCount() {
+	this->refCount++;
+}
+
+int MyDB_Page::getRefCount() {
+	return this->refCount;
+}
+
 #endif

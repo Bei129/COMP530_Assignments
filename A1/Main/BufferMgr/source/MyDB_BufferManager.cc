@@ -23,6 +23,7 @@ MyDB_PageHandle MyDB_BufferManager::getPage(MyDB_TablePtr whichTable, long i) {
         return it->second;
     }
     MyDB_Page* newPageObj = new MyDB_Page(whichTable, i, pageSize);
+    newPageObj->incRefCount();
     MyDB_PageHandle newPage = make_shared<MyDB_PageHandleBase>(newPageObj, this);
     pageMap[pageId] = newPage;
     lruList.push_front(newPage);
@@ -33,7 +34,9 @@ MyDB_PageHandle MyDB_BufferManager::getPage(MyDB_TablePtr whichTable, long i) {
 }
 
 MyDB_PageHandle MyDB_BufferManager :: getPage () {
-	MyDB_Page* tempPageObj = new MyDB_Page(pageSize); 
+	MyDB_Page* tempPageObj = new MyDB_Page(pageSize);
+    tempPageObj->setSlotId(slotId++);
+    tempPageObj->incRefCount();
     MyDB_PageHandle tempPage = make_shared<MyDB_PageHandleBase>(tempPageObj, this);
     lruList.push_front(tempPage);
     if (lruList.size() > numPages) {
@@ -79,24 +82,29 @@ MyDB_BufferManager::~MyDB_BufferManager() {
 char* MyDB_BufferManager::evictPage() {
     MyDB_PageHandle lruPage = lruList.back();
     char* evictAddr = lruPage->getPage()->getBufferAddr();
-    //lruPage->getPage()->setBufferAddr(nullptr);
-    if (!lruPage->isPinned()) {
-        lruList.pop_back();
-        auto it = pageMap.find(lruPage->getPageId());
-        if (it != pageMap.end()) {
-            delete[] static_cast<char*>(lruPage->getBytes());
-            pageMap.erase(it);
-        }
-        writeToDisk(lruPage->getPage());
-        /*if (lruPage->isDirty()) {
-            int fd = open(tempFile.c_str(), O_WRONLY | O_CREAT, 0666);
-            if (fd != -1) {
-                lseek(fd, lruPage->getSlotId() * pageSize, SEEK_SET);
-                write(fd, lruPage->getBytes(), pageSize);
-                close(fd);
+    auto rit = lruList.rbegin();
+    while(rit != lruList.rend()) {
+        lruPage = *rit;
+
+        if (!lruPage->isPinned()) {
+            auto it = pageMap.find(lruPage->getPageId());
+            if (it != pageMap.end()) {
+                pageMap.erase(it);
             }
-        }*/
+
+            writeToDisk(lruPage->getPage());
+
+            evictAddr = lruPage->getPage()->getBufferAddr();
+
+            lruPage->getPage()->setBufferAddr(nullptr);
+
+            lruList.erase(std::next(rit).base());
+
+            break;
+        }
+        ++rit;
     }
+
     return evictAddr;
 }
 

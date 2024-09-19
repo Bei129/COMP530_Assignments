@@ -9,19 +9,14 @@
 void* MyDB_PageHandleBase::getBytes() {
     if (page->getBufferAddr()==nullptr) {
         if (buffer->bufferSpace.empty()) {
-            //cout << "buffer->bufferSpace.empty()" << endl;
             char* newAddr = buffer->evictPage();
             page->setBufferAddr(newAddr);
         }
         else {
-            //cout << "else" << endl;
             char* newAddr = buffer->bufferSpace.back();
             buffer->bufferSpace.pop_back();
             page->setBufferAddr(newAddr);
         }
-    }
-    else {
-        //cout << "exists bufferAddr" << endl;
     }
     return page->getBufferAddr();
 }
@@ -39,6 +34,10 @@ MyDB_PageHandleBase::MyDB_PageHandleBase(MyDB_Page* page, MyDB_BufferManager* bu
 }
 
 MyDB_PageHandleBase :: ~MyDB_PageHandleBase () {
+    page->decRefCount();
+    if (page->getRefCount() == 0) {
+        page->undoPinned();
+    }
 }
 
 #endif
