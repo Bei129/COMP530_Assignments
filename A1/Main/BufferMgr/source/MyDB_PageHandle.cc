@@ -7,21 +7,19 @@
 #include "MyDB_PageHandle.h"
 
 void* MyDB_PageHandleBase::getBytes() {
-    if (page->getBufferAddr()==nullptr) {
-        if (buffer->bufferSpace.empty()) {
-            //cout << "buffer->bufferSpace.empty()" << endl;
-            char* newAddr = buffer->evictPage();
-            page->setBufferAddr(newAddr);
-        }
-        else {
-            //cout << "else" << endl;
+    if (page->getBufferAddr() == nullptr) {
+        if (!buffer->bufferSpace.empty()) {
+            // Allocate buffer from available pool
             char* newAddr = buffer->bufferSpace.back();
             buffer->bufferSpace.pop_back();
             page->setBufferAddr(newAddr);
+            buffer->readFromDisk(page);
+        } else {
+            // Evict a page if buffer space is full
+            char* evictedAddr = buffer->evictPage();
+            page->setBufferAddr(evictedAddr);
+            buffer->readFromDisk(page);
         }
-    }
-    else {
-        //cout << "exists bufferAddr" << endl;
     }
     return page->getBufferAddr();
 }

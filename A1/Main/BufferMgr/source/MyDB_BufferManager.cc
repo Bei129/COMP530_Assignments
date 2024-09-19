@@ -79,23 +79,20 @@ MyDB_BufferManager::~MyDB_BufferManager() {
 char* MyDB_BufferManager::evictPage() {
     MyDB_PageHandle lruPage = lruList.back();
     char* evictAddr = lruPage->getPage()->getBufferAddr();
-    //lruPage->getPage()->setBufferAddr(nullptr);
+    
     if (!lruPage->isPinned()) {
         lruList.pop_back();
         auto it = pageMap.find(lruPage->getPageId());
         if (it != pageMap.end()) {
-            delete[] static_cast<char*>(lruPage->getBytes());
+            // Write to disk if dirty
+            if (lruPage->isDirty()) {
+                writeToDisk(lruPage->getPage());
+            }
+            // Reclaim buffer space
+            bufferSpace.push_back(lruPage->getPage()->getBufferAddr());
+            lruPage->getPage()->setBufferAddr(nullptr);
             pageMap.erase(it);
         }
-        writeToDisk(lruPage->getPage());
-        /*if (lruPage->isDirty()) {
-            int fd = open(tempFile.c_str(), O_WRONLY | O_CREAT, 0666);
-            if (fd != -1) {
-                lseek(fd, lruPage->getSlotId() * pageSize, SEEK_SET);
-                write(fd, lruPage->getBytes(), pageSize);
-                close(fd);
-            }
-        }*/
     }
     return evictAddr;
 }
@@ -121,6 +118,7 @@ void MyDB_BufferManager::readFromDisk(MyDB_Page* page) {
     }
 }
 
+
 void MyDB_BufferManager::writeToDisk(MyDB_Page* page) {
     if (page->isAnonymous()) {
         if (page->isDirty()) {
@@ -145,5 +143,5 @@ void MyDB_BufferManager::writeToDisk(MyDB_Page* page) {
         }
     }
 }
-	
+
 #endif
