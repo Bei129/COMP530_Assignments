@@ -129,6 +129,7 @@ void MyDB_BufferManager::readFromDisk(MyDB_Page* page) {
     }
 }
 
+
 void MyDB_BufferManager::writeToDisk(MyDB_Page* page) {
     if (page->isAnonymous()) {
         if (page->isDirty()) {
@@ -153,5 +154,5 @@ void MyDB_BufferManager::writeToDisk(MyDB_Page* page) {
         }
     }
 }
-	
+
 #endif
