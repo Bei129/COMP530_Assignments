@@ -35,7 +35,13 @@ MyDB_PageHandle MyDB_BufferManager::getPage(MyDB_TablePtr whichTable, long i) {
 
 MyDB_PageHandle MyDB_BufferManager :: getPage () {
 	MyDB_Page* tempPageObj = new MyDB_Page(pageSize);
-    tempPageObj->setSlotId(slotId++);
+    if (anonymousSpace.empty()) {
+        tempPageObj->setSlotId(slotId++);
+    }
+    else {
+        tempPageObj->setSlotId(anonymousSpace.back());
+        anonymousSpace.pop_back();
+    }
     tempPageObj->incRefCount();
     MyDB_PageHandle tempPage = make_shared<MyDB_PageHandleBase>(tempPageObj, this);
     lruList.push_front(tempPage);

@@ -67,6 +67,7 @@ public:
 	void readFromDisk(MyDB_Page* page);
 
 	vector<char*> bufferSpace;
+	vector<int> anonymousSpace;
 
 private:
 

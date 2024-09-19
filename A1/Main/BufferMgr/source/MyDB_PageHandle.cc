@@ -37,6 +37,9 @@ MyDB_PageHandleBase :: ~MyDB_PageHandleBase () {
     page->decRefCount();
     if (page->getRefCount() == 0) {
         page->undoPinned();
+        if (page->isAnonymous()) {
+            this->buffer->anonymousSpace.push_back(page->getSlotId());
+        }
     }
 }
 
