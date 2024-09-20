@@ -14,7 +14,6 @@ private:
 	bool anonymous;
 	bool pinned = false;
 	bool dirty = false;
-	// int refCount = 0;
 	size_t pageSize;
 public:
 	// Initailize anonymous page
@@ -41,10 +40,6 @@ public:
 	void setDirty(bool dirty);
 
 	size_t getPageSize() const {return pageSize; }
-
-	// int getRefCount();
-	// void decRefCount();
-	// void incRefCount();
 };
 
 #endif

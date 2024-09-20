@@ -3,7 +3,6 @@
 #define BUFFER_MGR_H
 
 #include "MyDB_Table.h"
-#include "CheckLRU.h"
 #include "MyDB_Page.h"
 #include <unordered_map>
 #include <vector>
@@ -90,13 +89,8 @@ private:
 	// index temp file
 	int slotId = 0;
 
-	// unordered_map<pair<MyDB_TablePtr, long>, MyDB_Page*, pair_hash> pageMap;
-	// list<MyDB_Page*> lruList;
 	unordered_map<pair<MyDB_TablePtr, long>, std::shared_ptr<MyDB_Page>, pair_hash> pageMap;
     list<std::shared_ptr<MyDB_Page>> lruList;
-	//LRU* lru;
-
-
 };
 
 #endif
