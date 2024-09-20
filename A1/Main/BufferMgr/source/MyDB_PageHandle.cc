@@ -11,12 +11,17 @@ void* MyDB_PageHandleBase::getBytes() {
         if (buffer->bufferSpace.empty()) {
             char* newAddr = buffer->evictPage();
             page->setBufferAddr(newAddr);
+            buffer->insert(page);
         }
         else {
             char* newAddr = buffer->bufferSpace.back();
             buffer->bufferSpace.pop_back();
             page->setBufferAddr(newAddr);
+            buffer->insert(page);
         }
+    }
+    else {
+        buffer->update(page);
     }
     return page->getBufferAddr();
 }

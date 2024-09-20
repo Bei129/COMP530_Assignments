@@ -15,21 +15,16 @@
 using namespace std;
 
 MyDB_PageHandle MyDB_BufferManager::getPage(MyDB_TablePtr whichTable, long i) {
+    MyDB_Page* newPageObj;
     pair<MyDB_TablePtr, long> pageId = make_pair(whichTable, i);
     auto it = pageMap.find(pageId);
-    if (it != pageMap.end()) {
-        auto listIt = find(lruList.begin(), lruList.end(), it->second);
-        lruList.splice(lruList.begin(), lruList, listIt);
-        return it->second;
+    if (it == pageMap.end()) {
+        newPageObj = new MyDB_Page(whichTable, i, pageSize);
+        pageMap[pageId] = newPageObj;
     }
-    MyDB_Page* newPageObj = new MyDB_Page(whichTable, i, pageSize);
+    newPageObj = pageMap[pageId];
     newPageObj->incRefCount();
     MyDB_PageHandle newPage = make_shared<MyDB_PageHandleBase>(newPageObj, this);
-    pageMap[pageId] = newPage;
-    lruList.push_front(newPage);
-    if (lruList.size() > numPages) {
-        evictPage();
-    }
     return newPage;
 }
 
@@ -44,10 +39,6 @@ MyDB_PageHandle MyDB_BufferManager :: getPage () {
     }
     tempPageObj->incRefCount();
     MyDB_PageHandle tempPage = make_shared<MyDB_PageHandleBase>(tempPageObj, this);
-    lruList.push_front(tempPage);
-    if (lruList.size() > numPages) {
-        evictPage();
-    }
     return tempPage;
 }
 
@@ -69,7 +60,9 @@ void MyDB_BufferManager :: unpin (MyDB_PageHandle unpinMe) {
 
 MyDB_BufferManager::MyDB_BufferManager(size_t pageSize, size_t numPages, string tempFile)
     : pageSize(pageSize), numPages(numPages), tempFile(tempFile) {
-    pageMap = unordered_map<pair<MyDB_TablePtr, long>, MyDB_PageHandle, pair_hash>();
+    //lru = new LRU(numPages);
+    lruList = list<MyDB_Page*>();
+    pageMap = unordered_map<pair<MyDB_TablePtr, long>, MyDB_Page*, pair_hash>();
     buffer = (char*)malloc(pageSize * numPages);
     char* addr = buffer;
     for (int i = 0; i < numPages; i++) {
@@ -79,17 +72,18 @@ MyDB_BufferManager::MyDB_BufferManager(size_t pageSize, size_t numPages, string 
 }
 
 MyDB_BufferManager::~MyDB_BufferManager() {
-    for (auto &page : lruList) {
-        writeToDisk(page->getPage());
+    for (auto &it : pageMap) {
+        writeToDisk(it.second);
     }
     free(buffer);
+    remove(tempFile.c_str());
 }
 
 char* MyDB_BufferManager::evictPage() {
-    MyDB_PageHandle lruPage = lruList.back();
-    char* evictAddr = lruPage->getPage()->getBufferAddr();
+    MyDB_Page* lruPage = lruList.back();
+    char* evictAddr = lruPage->getBufferAddr();
     auto rit = lruList.rbegin();
-    while(rit != lruList.rend()) {
+    while (rit != lruList.rend()) {
         lruPage = *rit;
 
         if (!lruPage->isPinned()) {
@@ -98,11 +92,11 @@ char* MyDB_BufferManager::evictPage() {
                 pageMap.erase(it);
             }
 
-            writeToDisk(lruPage->getPage());
+            writeToDisk(lruPage);
 
-            evictAddr = lruPage->getPage()->getBufferAddr();
+            evictAddr = lruPage->getBufferAddr();
 
-            lruPage->getPage()->setBufferAddr(nullptr);
+            lruPage->setBufferAddr(nullptr);
 
             lruList.erase(std::next(rit).base());
 
@@ -110,8 +104,18 @@ char* MyDB_BufferManager::evictPage() {
         }
         ++rit;
     }
-
     return evictAddr;
+}
+
+void MyDB_BufferManager::update(MyDB_Page* page) {
+
+}
+
+void MyDB_BufferManager::insert(MyDB_Page* page) {
+    if (lruList.size() < numPages) {
+        lruList.push_back(page);
+    }
+    readFromDisk(page);
 }
 
 void MyDB_BufferManager::readFromDisk(MyDB_Page* page) {

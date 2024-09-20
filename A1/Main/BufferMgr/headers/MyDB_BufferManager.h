@@ -3,6 +3,7 @@
 #define BUFFER_MGR_H
 
 #include "MyDB_Table.h"
+#include "CheckLRU.h"
 #include "MyDB_Page.h"
 #include <unordered_map>
 #include <vector>
@@ -69,6 +70,10 @@ public:
 	vector<char*> bufferSpace;
 	vector<int> anonymousSpace;
 
+	// LRU
+	void update(MyDB_Page* page);
+	void insert(MyDB_Page* page);
+
 private:
 
 	// YOUR STUFF HERE
@@ -80,8 +85,10 @@ private:
 	// index temp file
 	int slotId = 0;
 
-	unordered_map<pair<MyDB_TablePtr, long>, MyDB_PageHandle, pair_hash> pageMap;
-    list<MyDB_PageHandle> lruList;
+	unordered_map<pair<MyDB_TablePtr, long>, MyDB_Page*, pair_hash> pageMap;
+	list<MyDB_Page*> lruList;
+	//LRU* lru;
+
 
 };
 
