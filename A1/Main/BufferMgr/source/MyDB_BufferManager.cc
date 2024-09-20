@@ -14,18 +14,32 @@
 
 using namespace std;
 
+// MyDB_PageHandle MyDB_BufferManager::getPage(MyDB_TablePtr whichTable, long i) {
+//     MyDB_Page* newPageObj;
+//     pair<MyDB_TablePtr, long> pageId = make_pair(whichTable, i);
+//     auto it = pageMap.find(pageId);
+//     if (it == pageMap.end()) {
+//         newPageObj = new MyDB_Page(whichTable, i, pageSize);
+//         pageMap[pageId] = newPageObj;
+//     }
+//     newPageObj = pageMap[pageId];
+//     newPageObj->incRefCount();
+//     MyDB_PageHandle newPage = make_shared<MyDB_PageHandleBase>(newPageObj, this);
+//     return newPage;
+// }
 MyDB_PageHandle MyDB_BufferManager::getPage(MyDB_TablePtr whichTable, long i) {
-    MyDB_Page* newPageObj;
     pair<MyDB_TablePtr, long> pageId = make_pair(whichTable, i);
     auto it = pageMap.find(pageId);
-    if (it == pageMap.end()) {
-        newPageObj = new MyDB_Page(whichTable, i, pageSize);
-        pageMap[pageId] = newPageObj;
+
+    if (it != pageMap.end()) {
+        it->second->incRefCount(); 
+        return make_shared<MyDB_PageHandleBase>(it->second, this);
     }
-    newPageObj = pageMap[pageId];
+
+    MyDB_Page* newPageObj = new MyDB_Page(whichTable, i, pageSize);
     newPageObj->incRefCount();
-    MyDB_PageHandle newPage = make_shared<MyDB_PageHandleBase>(newPageObj, this);
-    return newPage;
+    pageMap[pageId] = newPageObj;
+    return make_shared<MyDB_PageHandleBase>(newPageObj, this);
 }
 
 MyDB_PageHandle MyDB_BufferManager :: getPage () {
@@ -41,6 +55,7 @@ MyDB_PageHandle MyDB_BufferManager :: getPage () {
     MyDB_PageHandle tempPage = make_shared<MyDB_PageHandleBase>(tempPageObj, this);
     return tempPage;
 }
+
 
 MyDB_PageHandle MyDB_BufferManager :: getPinnedPage (MyDB_TablePtr whichTable, long i) {
 	MyDB_PageHandle ph = getPage(whichTable, i);
@@ -73,15 +88,25 @@ MyDB_BufferManager::MyDB_BufferManager(size_t pageSize, size_t numPages, string 
 
 MyDB_BufferManager::~MyDB_BufferManager() {
     for (auto &it : pageMap) {
-        writeToDisk(it.second);
+        if (it.second != nullptr) {
+            writeToDisk(it.second); 
+            delete it.second; 
+        }
     }
+    lruList.clear();
     free(buffer);
     remove(tempFile.c_str());
 }
 
 char* MyDB_BufferManager::evictPage() {
+    if (lruList.empty()) {
+        cout << "LRU list is empty, nothing to evict." << endl;
+        return nullptr;
+    }
+
     MyDB_Page* lruPage = lruList.back();
     char* evictAddr = lruPage->getBufferAddr();
+
     auto rit = lruList.rbegin();
     while (rit != lruList.rend()) {
         lruPage = *rit;
@@ -95,7 +120,6 @@ char* MyDB_BufferManager::evictPage() {
             writeToDisk(lruPage);
 
             evictAddr = lruPage->getBufferAddr();
-
             lruPage->setBufferAddr(nullptr);
 
             lruList.erase(std::next(rit).base());
