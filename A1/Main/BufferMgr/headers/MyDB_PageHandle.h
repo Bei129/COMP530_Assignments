@@ -36,17 +36,20 @@ public:
 	~MyDB_PageHandleBase ();
 
 	// FEEL FREE TO ADD ADDITIONAL PUBLIC METHODS
-	MyDB_PageHandleBase(MyDB_Page* page, MyDB_BufferManager* buffer);
+	// MyDB_PageHandleBase(MyDB_Page* page, MyDB_BufferManager* buffer);
+	MyDB_PageHandleBase(std::shared_ptr<MyDB_Page> page, MyDB_BufferManager* buffer);
 	bool isDirty() const { return page->isDirty(); }
-	bool isPinned() const { return page->isPinned(); } 
+    bool isPinned() const { return page->isPinned(); } 
     int getSlotId() const { return page->getSlotId(); }
     std::pair<MyDB_TablePtr, long> getPageId() const { return page->getPageId(); }
-	MyDB_Page* getPage() const { return page; }
+	// MyDB_Page* getPage() const { return page; }
+	std::shared_ptr<MyDB_Page> getPage() const { return page; }
 private:
 
 	// YOUR CODE HERE
-	MyDB_Page* page; 
-	MyDB_BufferManager* buffer;
+	// MyDB_Page* page; 
+	std::shared_ptr<MyDB_Page> page; 
+    MyDB_BufferManager* buffer;
 	
 };
 

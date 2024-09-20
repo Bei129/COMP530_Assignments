@@ -64,15 +64,20 @@ public:
 
 	// FEEL FREE TO ADD ADDITIONAL PUBLIC METHODS 
 	char* evictPage();
-	void writeToDisk(MyDB_Page* page);
-	void readFromDisk(MyDB_Page* page);
+    void writeToDisk(MyDB_Page* page);
+    void readFromDisk(MyDB_Page* page);
 
 	vector<char*> bufferSpace;
 	vector<int> anonymousSpace;
 
 	// LRU
-	void update(MyDB_Page* page);
-	void insert(MyDB_Page* page);
+	void update(shared_ptr<MyDB_Page> page);
+    void insert(shared_ptr<MyDB_Page> page);
+
+	bool isValidBufferAddr(char* addr) const { 
+		return addr >= buffer && addr < (buffer + pageSize * numPages);
+	}
+
 
 private:
 
@@ -85,8 +90,10 @@ private:
 	// index temp file
 	int slotId = 0;
 
-	unordered_map<pair<MyDB_TablePtr, long>, MyDB_Page*, pair_hash> pageMap;
-	list<MyDB_Page*> lruList;
+	// unordered_map<pair<MyDB_TablePtr, long>, MyDB_Page*, pair_hash> pageMap;
+	// list<MyDB_Page*> lruList;
+	unordered_map<pair<MyDB_TablePtr, long>, std::shared_ptr<MyDB_Page>, pair_hash> pageMap;
+    list<std::shared_ptr<MyDB_Page>> lruList;
 	//LRU* lru;
 
 
