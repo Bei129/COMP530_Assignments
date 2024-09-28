@@ -14,6 +14,11 @@ MyDB_TableReaderWriter::MyDB_TableReaderWriter(MyDB_TablePtr forMe, MyDB_BufferM
 }
 
 MyDB_PageReaderWriter MyDB_TableReaderWriter :: operator [] (size_t i) {
+    while (i > myTable->lastPage()) {
+        myTable->setLastPage(myTable->lastPage()+1);
+        shared_ptr <MyDB_PageReaderWriter> lastPage = make_shared <MyDB_PageReaderWriter>(myTable, myBuffer, myTable->lastPage());
+        lastPage->clear();
+    }
 	return MyDB_PageReaderWriter(myTable, myBuffer, i);
 }
 
