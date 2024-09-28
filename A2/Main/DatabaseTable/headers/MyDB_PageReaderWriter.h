@@ -10,6 +10,7 @@ class MyDB_PageReaderWriter {
 public:
 
 	// ANY OTHER METHODS YOU WANT HERE
+	MyDB_PageReaderWriter(MyDB_TablePtr myTable, MyDB_BufferManagerPtr myBuffer, size_t pageIndex);
 
 	// empties out the contents of this page, so that it has no records in it
 	// the type of the page is set to MyDB_PageType :: RegularPage
@@ -34,6 +35,15 @@ public:
 private:
 
 	// ANYTHING ELSE YOU WANT HERE
+	MyDB_TablePtr myTable;
+    MyDB_BufferManagerPtr myBuffer;
+    size_t pageIndex;
+    MyDB_PageHandle pageHandle;	// to access the physical data of the page
+    size_t pageSize;
+
+	// declare friend classes to access their private members
+	friend class MyDB_TableReaderWriter;
+    friend class MyDB_PageRecIterator;
 };
 
 #endif
