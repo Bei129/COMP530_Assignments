@@ -55,7 +55,8 @@ void Aggregate::run() {
     aggregatePages.push_back(currentAggregatePage);
 
     // Create hash table for aggregate records
-    unordered_map<size_t, vector<void*>> aggregateHashTable;
+    // unordered_map<size_t, vector<void*>> aggregateHashTable;
+	std::map<size_t, vector<void*>> aggregateHashTable;
 
     // Prepare grouping computations and match function
     vector<func> groupingComputations;
@@ -174,22 +175,41 @@ void Aggregate::run() {
     MyDB_RecordIteratorAltPtr aggregateIterator = getIteratorAlt(aggregatePages);
     MyDB_RecordPtr outputRecord = output->getEmptyRecord();
 
-    // Write final results to output
-    while (aggregateIterator->advance()) {
-        aggregateIterator->getCurrent(aggRecord);
+    // // Write final results to output
+    // while (aggregateIterator->advance()) {
+    //     aggregateIterator->getCurrent(aggRecord);
 
-        for (i = 0; i < groupCount; i++) {
-            outputRecord->getAtt(i)->set(aggRecord->getAtt(i));
-        }
+    //     for (i = 0; i < groupCount; i++) {
+    //         outputRecord->getAtt(i)->set(aggRecord->getAtt(i));
+    //     }
 
-        combinedRecord->buildFrom(inputRecord, aggRecord);
-        for (auto& func : finalAggregateComputations) {
-            outputRecord->getAtt(i++)->set(func());
-        }
+    //     combinedRecord->buildFrom(inputRecord, aggRecord);
+    //     for (auto& func : finalAggregateComputations) {
+    //         outputRecord->getAtt(i++)->set(func());
+    //     }
 
-        outputRecord->recordContentHasChanged();
-        output->append(outputRecord);
-    }
+    //     outputRecord->recordContentHasChanged();
+    //     output->append(outputRecord);
+    // }
+	for (const auto& entry : aggregateHashTable) {
+		for (void* recordLoc : entry.second) {
+			aggRecord->fromBinary(recordLoc);
+
+			for (int i = 0; i < groupCount; i++) {
+				outputRecord->getAtt(i)->set(aggRecord->getAtt(i));
+			}
+
+			// Finalize the aggregate calculations
+			combinedRecord->buildFrom(inputRecord, aggRecord);
+			int j = 0;
+			for (auto& func : finalAggregateComputations) {
+				outputRecord->getAtt(groupCount + j++)->set(func());
+			}
+
+			outputRecord->recordContentHasChanged();
+			output->append(outputRecord);
+		}
+	}
 }
 
 #endif
