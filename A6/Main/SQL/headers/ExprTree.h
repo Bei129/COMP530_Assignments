@@ -19,6 +19,26 @@ class ExprTree {
 public:
 	virtual string toString () = 0;
 	virtual ~ExprTree () {}
+
+	virtual bool isNumeric() { return false; }
+	virtual bool isString() { return false; }
+	virtual bool isAggregateFunction() { return false; }
+	virtual bool isAttribute() { return false; }
+	virtual bool isEq() { return false; }
+	virtual bool isOr() { return false; }
+	virtual bool isComp() { return false; }
+	virtual bool isNotEq() { return false; }
+	virtual bool isMathOp() { return false; }
+	virtual bool isPlusOp() { return false; }
+	virtual bool isNotOp() { return false; }
+
+	virtual string getTableName() { return ""; }
+	virtual string getAttributeName() { return ""; }
+	virtual ExprTreePtr getLeftOperand() { return nullptr; }
+	virtual ExprTreePtr getRightOperand() { return nullptr; }
+	virtual ExprTreePtr getChild() { return nullptr; }
+
+	virtual string getExprType() { return "virtual type"; }
 };
 
 class BoolLiteral : public ExprTree {
@@ -38,6 +58,8 @@ public:
 			return "bool[false]";
 		}
 	}	
+
+	virtual string getExprType() override { return "BoolLiteral"; }
 };
 
 class DoubleLiteral : public ExprTree {
@@ -55,6 +77,10 @@ public:
 	}	
 
 	~DoubleLiteral () {}
+
+	bool isNumeric() override { return true; }
+
+	virtual string getExprType() override { return "DoubleLiteral"; }
 };
 
 // this implement class ExprTree
@@ -73,6 +99,10 @@ public:
 	}
 
 	~IntLiteral () {}
+
+	bool isNumeric() override { return true; }
+
+	virtual string getExprType() override { return "IntLiteral"; }
 };
 
 class StringLiteral : public ExprTree {
@@ -91,6 +121,10 @@ public:
 	}
 
 	~StringLiteral () {}
+
+	bool isString() override { return true; }
+
+	virtual string getExprType() override { return "StringLiteral"; }
 };
 
 class Identifier : public ExprTree {
@@ -110,6 +144,12 @@ public:
 	}	
 
 	~Identifier () {}
+
+	bool isAttribute() override { return true; }
+	string getTableName() override { return tableName; }
+	string getAttributeName() override { return attName; }
+
+	virtual string getExprType() override { return "Identifier"; }
 };
 
 class MinusOp : public ExprTree {
@@ -131,6 +171,13 @@ public:
 	}	
 
 	~MinusOp () {}
+
+	ExprTreePtr getLeftOperand() override { return lhs; }
+	ExprTreePtr getRightOperand() override { return rhs; }
+
+	bool isMathOp() override { return true; }
+
+	virtual string getExprType() override { return "MinusOp"; }
 };
 
 class PlusOp : public ExprTree {
@@ -152,6 +199,14 @@ public:
 	}	
 
 	~PlusOp () {}
+
+	ExprTreePtr getLeftOperand() override { return lhs; }
+	ExprTreePtr getRightOperand() override { return rhs; }
+
+	bool isMathOp() override { return true; }
+	bool isPlusOp() override { return true; }
+
+	virtual string getExprType() override { return "PlusOp"; }
 };
 
 class TimesOp : public ExprTree {
@@ -173,6 +228,13 @@ public:
 	}	
 
 	~TimesOp () {}
+
+	ExprTreePtr getLeftOperand() override { return lhs; }
+	ExprTreePtr getRightOperand() override { return rhs; }
+
+	bool isMathOp() override { return true; }
+
+	virtual string getExprType() override { return "TimesOp"; }
 };
 
 class DivideOp : public ExprTree {
@@ -194,6 +256,13 @@ public:
 	}	
 
 	~DivideOp () {}
+
+	ExprTreePtr getLeftOperand() override { return lhs; }
+	ExprTreePtr getRightOperand() override { return rhs; }
+
+	bool isMathOp() override { return true; }
+
+	virtual string getExprType() override { return "DivideOp"; }
 };
 
 class GtOp : public ExprTree {
@@ -215,6 +284,13 @@ public:
 	}	
 
 	~GtOp () {}
+
+	ExprTreePtr getLeftOperand() override { return lhs; }
+	ExprTreePtr getRightOperand() override { return rhs; }
+
+	bool isComp() override { return true; }
+
+	virtual string getExprType() override { return "GtOp"; }
 };
 
 class LtOp : public ExprTree {
@@ -236,6 +312,13 @@ public:
 	}	
 
 	~LtOp () {}
+
+	ExprTreePtr getLeftOperand() override { return lhs; }
+	ExprTreePtr getRightOperand() override { return rhs; }
+
+	bool isComp() override { return true; }
+
+	virtual string getExprType() override { return "LtOp"; }
 };
 
 class NeqOp : public ExprTree {
@@ -257,6 +340,13 @@ public:
 	}	
 
 	~NeqOp () {}
+
+	ExprTreePtr getLeftOperand() override { return lhs; }
+	ExprTreePtr getRightOperand() override { return rhs; }
+
+	bool isNotEq() override { return true; }
+
+	virtual string getExprType() override { return "NeqOp"; }
 };
 
 class OrOp : public ExprTree {
@@ -278,6 +368,13 @@ public:
 	}	
 
 	~OrOp () {}
+
+	ExprTreePtr getLeftOperand() override { return lhs; }
+	ExprTreePtr getRightOperand() override { return rhs; }
+
+	bool isOr() override { return true; }
+
+	virtual string getExprType() override { return "OrOp"; }
 };
 
 class EqOp : public ExprTree {
@@ -299,6 +396,13 @@ public:
 	}	
 
 	~EqOp () {}
+
+	ExprTreePtr getLeftOperand() override { return lhs; }
+	ExprTreePtr getRightOperand() override { return rhs; }
+
+	bool isEq() override { return true; }
+
+	virtual string getExprType() override { return "EqOp"; }
 };
 
 class NotOp : public ExprTree {
@@ -318,6 +422,12 @@ public:
 	}	
 
 	~NotOp () {}
+
+	ExprTreePtr getChild() override { return child; }
+
+	bool isNotOp() override { return true; }
+
+	virtual string getExprType() override { return "NotOp"; }
 };
 
 class SumOp : public ExprTree {
@@ -337,6 +447,10 @@ public:
 	}	
 
 	~SumOp () {}
+
+	bool isAggregateFunction() override { return true; }
+
+	virtual string getExprType() override { return "SumOp"; }
 };
 
 class AvgOp : public ExprTree {
@@ -356,6 +470,10 @@ public:
 	}	
 
 	~AvgOp () {}
+
+	bool isAggregateFunction() override { return true; }
+
+	virtual string getExprType() override { return "AvgOp"; }
 };
 
 #endif

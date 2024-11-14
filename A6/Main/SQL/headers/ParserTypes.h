@@ -254,6 +254,186 @@ public:
 		}
 	}
 
+	MyDB_AttTypePtr getType(const ExprTreePtr& expr, const map<string, MyDB_TablePtr>& allTables) {
+		if (expr->getExprType() == "StringLiteral") return make_shared<MyDB_StringAttType>();
+		if (expr->getExprType() == "IntLiteral") return make_shared<MyDB_IntAttType>();
+		if (expr->getExprType() == "DoubleLiteral") return make_shared<MyDB_DoubleAttType>();
+		if (expr->getExprType() == "BoolLiteral") return make_shared<MyDB_BoolAttType>();
+
+		string tableName = expr->getTableName();
+		string fullTableName;
+		for (const auto& table : tablesToProcess) {
+			if (table.second == tableName) {
+				fullTableName = table.first;
+				break;
+			}
+		}
+		if (fullTableName.empty()) {
+			cout << "Error: Table " << tableName << " not found.\n";
+			return nullptr;
+		}
+
+		auto attrName = expr->getAttributeName();
+		auto it = allTables.find(fullTableName);
+		if (it == allTables.end()) {
+			cout << "Error: Table " << fullTableName << " not found in allTables.\n";
+			return nullptr;
+		}
+
+		auto schema = it->second->getSchema();
+		auto attrType = schema->getAttByName(attrName).second;
+		/*if (!attrType) {
+			cout << "Error: Attribute " << attrName << " not found in table " << fullTableName << ".\n";
+		}
+		else {
+			cout << "Attribute " << attrName << " in table " << fullTableName << " is of type " << attrType->toString() << ".\n";
+		}*/
+		return attrType;
+	}
+
+	MyDB_AttTypePtr checkTypes(const ExprTreePtr& expr, const map<string, MyDB_TablePtr>& allTables) {
+		//cout << expr->toString() << endl;
+		auto left = expr->getLeftOperand();
+		auto right = expr->getRightOperand();
+		auto child = expr->getChild();
+
+		MyDB_AttTypePtr leftType = left ? checkTypes(left, allTables) : nullptr;
+		MyDB_AttTypePtr rightType = right ? checkTypes(right, allTables) : nullptr;
+		MyDB_AttTypePtr childType = child ? checkTypes(child, allTables) : nullptr;
+
+		if (expr->isOr()) {
+			if (!leftType || !rightType) return nullptr;
+			return leftType;
+		}
+		else if (expr->isNotOp()) {
+			return childType;
+		}
+		else if (expr->isMathOp()) {
+			bool leftIsNumeric = leftType && (leftType->toString() == "int" || leftType->toString() == "double");
+			bool rightIsNumeric = rightType && (rightType->toString() == "int" || rightType->toString() == "double");
+
+			bool leftIsString = leftType && (leftType->toString() == "string");
+			bool rightIsString = rightType && (rightType->toString() == "string");
+
+			if (expr->isPlusOp()) {
+				if ((leftIsNumeric && rightIsNumeric) || (leftIsString && rightIsString)) {
+					return leftType;
+				}
+				return nullptr;
+			}
+
+			if (!leftIsNumeric || !rightIsNumeric) {
+				cout << "Type error in MathOp: Both operands must be numeric.\n";
+				return nullptr; // return nullptr means wrong
+			}
+			return leftType;  // return a valid type
+		}
+		else if (expr->isComp() || expr->isEq() || expr->isNotEq()) {
+			if (leftType && rightType) {
+				bool leftIsNumeric = (leftType->toString() == "int" || leftType->toString() == "double");
+				bool rightIsNumeric = (rightType->toString() == "int" || rightType->toString() == "double");
+
+				bool leftIsString = (leftType->toString() == "string");
+				bool rightIsString = (rightType->toString() == "string");
+
+				if ((leftIsNumeric && rightIsNumeric) || (leftIsString && rightIsString)) {
+					return leftType;
+				}
+				else {
+					cout << "Type error in Comparison: Operands must be of the same type (both numeric or both string).\n";
+					return nullptr;
+				}
+			}
+			else {
+				cout << "Type error in Comparison: Operand type missing.\n";
+				return nullptr;
+			}
+		}
+
+		// For attribute or constant, simply return their type
+		return getType(expr, allTables);
+	}
+
+
+	bool checkAttributes(const ExprTreePtr& expr, const map<string, MyDB_TablePtr>& allTables) {
+		if (expr->isAttribute()) {
+			//cout << "expr->getTableName():" << expr->getTableName() << endl;
+			auto tableName = expr->getTableName(); // aliasName
+
+			string fullTableName;
+			for (const auto& table : tablesToProcess) {
+				if (table.second == tableName) {
+					fullTableName = table.first;
+					break;
+				}
+			}
+
+			auto attrName = expr->getAttributeName();
+			auto it = allTables.find(fullTableName);
+			if (it == allTables.end() || !it->second->getSchema()->getAttByName(attrName).second) {
+				// cout << "Attribute error: Attribute " << attrName << " not found in table " << tableName << ".\n";
+				return false;
+			}
+		}
+		return true;
+	}
+
+	bool isAggregateOrGrouped(const ExprTreePtr& expr, const vector<ExprTreePtr>& groupingClauses) {
+		if (expr->isAggregateFunction()) return true;
+		for (const auto& groupExpr : groupingClauses) {
+			if (expr->toString() == groupExpr->toString()) return true;
+		}
+		//cout << "Grouping error: Non-aggregate expression must be part of GROUP BY clause.\n";
+		return false;
+	}
+
+
+	void check(MyDB_CatalogPtr myCatalog) {
+		cout << endl;
+		map <string, MyDB_TablePtr> allTables = MyDB_Table::getAllTables(myCatalog);
+		// Make sure that all of the referenced tables exist in the database. 
+		for (auto& tableAlias : tablesToProcess) {
+			const string& tableName = tableAlias.first;
+			if (allTables.find(tableName) == allTables.end()) {
+				cout << "Semantic error: Table " << tableName << " does not exist in the database.\n";
+				return;
+			}
+		}
+
+		// Make sure that all of the referenced attributes exist, and are correctly attached to 
+		// the tables that are indicated in the query.
+		for (auto& expr : valuesToSelect) {
+			if (!checkAttributes(expr, allTables)) {
+				cout << "Semantic error: Attribute does not exist in the referenced tables.\n";
+				return;
+			}
+		}
+
+		// Make sure that there are no type mismatches in any expressions. For example, it 
+		// is valid to compare integers and floating point numbers, but not integers and text
+		// strings.For another example, the only arithmetic operation that is valid on a text
+		// string is a "+" (which is a concatenation)... anything else should result in an error.
+		for (auto& expr : allDisjunctions) {
+			if (!checkTypes(expr, allTables)) {
+				cout << "Semantic error: Type mismatch in expression.\n";
+				return;
+			}
+		}
+
+		// Make sure that in the case of an aggregation query, the only selected attributes 
+		// (other than the aggregates) must be functions of the grouping attributes.
+		if (!groupingClauses.empty()) {
+			for (auto& expr : valuesToSelect) {
+				if (!isAggregateOrGrouped(expr, groupingClauses)) {
+					cout << "Semantic error: Non-aggregate attributes must be grouped.\n";
+					return;
+				}
+			}
+		}
+
+		cout << "No semantic errors found.\n";
+	}
+
 	#include "FriendDecls.h"
 };
 
@@ -297,6 +477,10 @@ public:
 	
 	void printSFWQuery () {
 		myQuery.print ();
+	}
+
+	void checkSemantics (MyDB_CatalogPtr myCatalog) {
+		myQuery.check(myCatalog);
 	}
 
 	#include "FriendDecls.h"

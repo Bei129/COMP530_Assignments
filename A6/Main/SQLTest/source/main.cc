@@ -163,6 +163,8 @@ int main (int numArgs, char **args) {
 
 						// print it out
 						final->printSFWQuery ();
+						// check semantic
+						final->checkSemantics (myCatalog);
 					}
 
 					// get outta here
