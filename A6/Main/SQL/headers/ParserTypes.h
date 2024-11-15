@@ -269,7 +269,7 @@ public:
 			}
 		}
 		if (fullTableName.empty()) {
-			cout << "Error: Table " << tableName << " not found.\n";
+			cout << "Error: Table abbreviation " << tableName << " not found.\n";
 			errorFound = true;
 			return nullptr;
 		}
@@ -284,10 +284,11 @@ public:
 
 		auto schema = it->second->getSchema();
 		auto attrType = schema->getAttByName(attrName).second;
-		/*if (!attrType) {
+		if (!attrType) {
 			cout << "Error: Attribute " << attrName << " not found in table " << fullTableName << ".\n";
+			errorFound = true;
 		}
-		else {
+		/*else {
 			cout << "Attribute " << attrName << " in table " << fullTableName << " is of type " << attrType->toString() << ".\n";
 		}*/
 		return attrType;
@@ -311,7 +312,7 @@ public:
 			if (!leftType || !rightType) return nullptr;
 			return leftType;
 		}
-		else if (expr->isNotOp()) {
+		else if (expr->isNotOp() || expr->isAggregateFunction()) {
 			return childType;
 		}
 		else if (expr->isMathOp()) {
@@ -355,7 +356,9 @@ public:
 				}
 			}
 			else {
-				cout << "Type error in Comparison '" << expr->toString() << "': Operand type missing.\n";
+				/*if (leftType) cout << "leftType: "<< leftType->toString() << endl;
+				if (rightType) cout << "leftType: " << rightType->toString() << endl;
+				cout << "Type error in Comparison '" << expr->toString() << "': Operand type missing.\n";*/
 				return nullptr;
 			}
 		}
@@ -395,6 +398,17 @@ public:
 			auto schema = it->second->getSchema();
 			if (schema->getAttByName(attrName).second == nullptr) {
 				cout << "Attribute error: Attribute '" << attrName << "' doesn't exist in table '" << fullTableName << "'.\n";
+				return false;
+			}
+		}
+		else {
+			MyDB_AttTypePtr attType = checkTypes(expr, allTables);
+			if (!attType) {
+				//cout << "this " << expr->toString() << "type error" << endl;
+				return false;
+			}
+			else if (expr->isAggregateFunction() && attType->toString() == "string") {
+				cout << "Aggregation error: " + expr->getExprType() + " could not handle string." << endl;
 				return false;
 			}
 		}

@@ -451,6 +451,8 @@ public:
 	bool isAggregateFunction() override { return true; }
 
 	virtual string getExprType() override { return "SumOp"; }
+
+	ExprTreePtr getChild() override { return child; }
 };
 
 class AvgOp : public ExprTree {
@@ -474,6 +476,8 @@ public:
 	bool isAggregateFunction() override { return true; }
 
 	virtual string getExprType() override { return "AvgOp"; }
+
+	ExprTreePtr getChild() override { return child; }
 };
 
 #endif
