@@ -1,0 +1,50 @@
+1.
+No semantic errors found.
+
+2.
+Semantic error: Expression '[s_s_suppkey]' must be an aggregate function or be included in the GROUP BY clause.
+
+3.
+Error: In Comparison `> (* ([l_l_extendedprice], - (int[1], [l_l_discount])), string[a string])`, the types of lhs `int` and rhs `string` do not match.
+
+4.
+Aggregation error: SumOp could not handle string.
+
+5.
+No semantic errors found.
+
+6.
+Error: In Comparison `> (+ ([l_l_tax], [l_l_discount]), string[date2])`, the types of lhs `int` and rhs `string` do not match.
+
+7.
+Error: Attribute k_orderkey not found in table orders.
+
+8.
+Error: Table abbreviation h not found.
+
+9.
+Type error in arithmetic operation '- (double[15.000000], string[here is another])': Both operands must be numeric (int or double).
+
+10.
+Semantic error: Table customers does not exist in the database.
+
+11.
+No semantic errors found.
+
+12.
+No semantic errors found.
+
+13.
+Error: Attribute l_extendedprice not found in table customer.
+
+14.
+No semantic errors found.
+
+15.
+Error: In Comparison `> (+ ([l_l_discount], [l_l_extendedprice]), string[327])`, the types of lhs `int` and rhs `string` do not match.
+
+16.
+No semantic errors found.
+
+17.
+No semantic errors found.
