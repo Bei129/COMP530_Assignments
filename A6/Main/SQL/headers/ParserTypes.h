@@ -270,6 +270,7 @@ public:
 		}
 		if (fullTableName.empty()) {
 			cout << "Error: Table " << tableName << " not found.\n";
+			errorFound = true;
 			return nullptr;
 		}
 
@@ -277,6 +278,7 @@ public:
 		auto it = allTables.find(fullTableName);
 		if (it == allTables.end()) {
 			cout << "Error: Table " << fullTableName << " not found in allTables.\n";
+			errorFound = true;
 			return nullptr;
 		}
 
@@ -293,12 +295,16 @@ public:
 
 	MyDB_AttTypePtr checkTypes(const ExprTreePtr& expr, const map<string, MyDB_TablePtr>& allTables) {
 		//cout << expr->toString() << endl;
+		if (errorFound) return nullptr;
+
 		auto left = expr->getLeftOperand();
 		auto right = expr->getRightOperand();
 		auto child = expr->getChild();
 
 		MyDB_AttTypePtr leftType = left ? checkTypes(left, allTables) : nullptr;
+		if (errorFound) return nullptr; 
 		MyDB_AttTypePtr rightType = right ? checkTypes(right, allTables) : nullptr;
+		if (errorFound) return nullptr;
 		MyDB_AttTypePtr childType = child ? checkTypes(child, allTables) : nullptr;
 
 		if (expr->isOr()) {
@@ -323,7 +329,8 @@ public:
 			}
 
 			if (!leftIsNumeric || !rightIsNumeric) {
-				cout << "Type error in MathOp: Both operands must be numeric.\n";
+				cout << "Type error in arithmetic operation '" << expr->toString() << "': Both operands must be numeric (int or double).\n";
+				errorFound = true;
 				return nullptr; // return nullptr means wrong
 			}
 			return leftType;  // return a valid type
@@ -340,12 +347,15 @@ public:
 					return leftType;
 				}
 				else {
-					cout << "Type error in Comparison: Operands must be of the same type (both numeric or both string).\n";
+					cout << "Error: In Comparison `" << expr->toString()
+                     << "`, the types of lhs `" << leftType->toString()
+                     << "` and rhs `" << rightType->toString() << "` do not match.\n";
+					errorFound = true;
 					return nullptr;
 				}
 			}
 			else {
-				cout << "Type error in Comparison: Operand type missing.\n";
+				cout << "Type error in Comparison '" << expr->toString() << "': Operand type missing.\n";
 				return nullptr;
 			}
 		}
@@ -356,6 +366,7 @@ public:
 
 
 	bool checkAttributes(const ExprTreePtr& expr, const map<string, MyDB_TablePtr>& allTables) {
+		if (errorFound) return false;
 		if (expr->isAttribute()) {
 			//cout << "expr->getTableName():" << expr->getTableName() << endl;
 			auto tableName = expr->getTableName(); // aliasName
@@ -368,10 +379,22 @@ public:
 				}
 			}
 
+			if (fullTableName.empty()) {
+				cout << "Attribute error: Alias '" << tableName << "' does not refer to any table.\n";
+				errorFound = true;
+				return false;
+			}
+
 			auto attrName = expr->getAttributeName();
 			auto it = allTables.find(fullTableName);
 			if (it == allTables.end() || !it->second->getSchema()->getAttByName(attrName).second) {
-				// cout << "Attribute error: Attribute " << attrName << " not found in table " << tableName << ".\n";
+				cout << "Attribute error: Attribute " << attrName << " doesn't exist in table " << tableName << ".\n";
+				return false;
+			}
+
+			auto schema = it->second->getSchema();
+			if (schema->getAttByName(attrName).second == nullptr) {
+				cout << "Attribute error: Attribute '" << attrName << "' doesn't exist in table '" << fullTableName << "'.\n";
 				return false;
 			}
 		}
@@ -383,19 +406,23 @@ public:
 		for (const auto& groupExpr : groupingClauses) {
 			if (expr->toString() == groupExpr->toString()) return true;
 		}
-		//cout << "Grouping error: Non-aggregate expression must be part of GROUP BY clause.\n";
+		// cout << "Grouping error: Selected attribute `" << expr->toString() << "` is not in grouping attributes.\n";
 		return false;
 	}
 
+	bool errorFound = false;
 
 	void check(MyDB_CatalogPtr myCatalog) {
+		errorFound = false;
 		cout << endl;
 		map <string, MyDB_TablePtr> allTables = MyDB_Table::getAllTables(myCatalog);
 		// Make sure that all of the referenced tables exist in the database. 
 		for (auto& tableAlias : tablesToProcess) {
 			const string& tableName = tableAlias.first;
+			if (errorFound) return;
 			if (allTables.find(tableName) == allTables.end()) {
 				cout << "Semantic error: Table " << tableName << " does not exist in the database.\n";
+				errorFound = true;
 				return;
 			}
 		}
@@ -403,8 +430,10 @@ public:
 		// Make sure that all of the referenced attributes exist, and are correctly attached to 
 		// the tables that are indicated in the query.
 		for (auto& expr : valuesToSelect) {
+			if (errorFound) return;
 			if (!checkAttributes(expr, allTables)) {
-				cout << "Semantic error: Attribute does not exist in the referenced tables.\n";
+				// cout << "Semantic error: Attribute does not exist in the referenced tables.\n";
+				errorFound = true;
 				return;
 			}
 		}
@@ -414,8 +443,26 @@ public:
 		// strings.For another example, the only arithmetic operation that is valid on a text
 		// string is a "+" (which is a concatenation)... anything else should result in an error.
 		for (auto& expr : allDisjunctions) {
+			if (errorFound) return;
 			if (!checkTypes(expr, allTables)) {
-				cout << "Semantic error: Type mismatch in expression.\n";
+				// cout << "Semantic error: Type mismatch in expression.\n";
+				errorFound = true;
+				return;
+			}
+		}
+
+		for (auto& expr : allDisjunctions) {
+			if (errorFound) return;
+            if (!checkAttributes(expr, allTables)) {
+				errorFound = true;
+                return;
+            }
+        }
+
+		for (auto& expr : groupingClauses) {
+			if (errorFound) return;
+			if (!checkAttributes(expr, allTables)) {
+				errorFound = true;
 				return;
 			}
 		}
@@ -424,14 +471,19 @@ public:
 		// (other than the aggregates) must be functions of the grouping attributes.
 		if (!groupingClauses.empty()) {
 			for (auto& expr : valuesToSelect) {
+				if (errorFound) return;
 				if (!isAggregateOrGrouped(expr, groupingClauses)) {
-					cout << "Semantic error: Non-aggregate attributes must be grouped.\n";
+					cout << "Semantic error: Expression '" << expr->toString()
+						<< "' must be an aggregate function or be included in the GROUP BY clause.\n";
+					errorFound = true;
 					return;
 				}
 			}
 		}
 
-		cout << "No semantic errors found.\n";
+		if (!errorFound) {
+			cout << "No semantic errors found.\n";
+		}
 	}
 
 	#include "FriendDecls.h"
