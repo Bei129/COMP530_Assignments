@@ -26,35 +26,143 @@
         std::cerr.flush();                                                                  \
     } while (false)
 
-
-// 似乎有问题
-void updateAttributesWithAlias(ExprTreePtr expr, const std::map<std::string, MyDB_TablePtr> &tablesWithAliases) {
-    if (!expr) return;
+ExprTreePtr updateAttributesWithAlias(ExprTreePtr expr, const std::map<std::string, MyDB_TablePtr> &tablesWithAliases) {
+    if (!expr) return nullptr;
 
     if (expr->isId()) {
-        // 获取当前的表名和属性名
-        std::string originalId = expr->getId();
-        for (const auto &tableAlias : tablesWithAliases) {
-            // 如果找到匹配的表，更新属性名
-            if (originalId.find(tableAlias.first + "_") == 0) {
-                // 生成新的属性名：前缀为别名
-                std::string newId = tableAlias.second->getName() + "_" + originalId.substr(tableAlias.first.size() + 1);
-                // 将新的属性名应用到表达式中
-                expr = std::make_shared<Identifier>((char *)tableAlias.first.c_str(), (char *)newId.c_str());
-                break;
+        std::string id = expr->getId(); // 获取原始的表名和属性名
+        size_t pos = id.find('_');
+        if (pos != std::string::npos) {
+            std::string tableName = id.substr(0, pos);
+            std::string attName = id.substr(pos + 1);
+
+            // 查找匹配的表别名
+            for (const auto &tableAlias : tablesWithAliases) {
+                if (tableName == tableAlias.first) {
+                    std::string newTableName = tableAlias.first;
+                    std::string newAttName = attName;
+                    return make_shared<Identifier>((char *)newTableName.c_str(), (char *)newAttName.c_str());
+                }
             }
         }
+
+        return expr;
+    } 
+	else if (dynamic_cast<EqOp*>(expr.get()) != nullptr) {
+        ExprTreePtr newLHS = updateAttributesWithAlias(expr->getLHS(), tablesWithAliases);
+        ExprTreePtr newRHS = updateAttributesWithAlias(expr->getRHS(), tablesWithAliases);
+        return make_shared<EqOp>(newLHS, newRHS);
+    } 
+	else if (dynamic_cast<GtOp*>(expr.get()) != nullptr) {
+        ExprTreePtr newLHS = updateAttributesWithAlias(expr->getLHS(), tablesWithAliases);
+        ExprTreePtr newRHS = updateAttributesWithAlias(expr->getRHS(), tablesWithAliases);
+        return make_shared<GtOp>(newLHS, newRHS);
+    } 
+	else if (dynamic_cast<LtOp*>(expr.get()) != nullptr) {
+        ExprTreePtr newLHS = updateAttributesWithAlias(expr->getLHS(), tablesWithAliases);
+        ExprTreePtr newRHS = updateAttributesWithAlias(expr->getRHS(), tablesWithAliases);
+        return make_shared<LtOp>(newLHS, newRHS);
+    } 
+	else if (dynamic_cast<NeqOp*>(expr.get()) != nullptr) {
+        ExprTreePtr newLHS = updateAttributesWithAlias(expr->getLHS(), tablesWithAliases);
+        ExprTreePtr newRHS = updateAttributesWithAlias(expr->getRHS(), tablesWithAliases);
+        return make_shared<NeqOp>(newLHS, newRHS);
+    } 
+	else if (dynamic_cast<OrOp*>(expr.get()) != nullptr) {
+        ExprTreePtr newLHS = updateAttributesWithAlias(expr->getLHS(), tablesWithAliases);
+        ExprTreePtr newRHS = updateAttributesWithAlias(expr->getRHS(), tablesWithAliases);
+        return make_shared<OrOp>(newLHS, newRHS);
+    } 
+	else if (dynamic_cast<PlusOp*>(expr.get()) != nullptr) {
+        ExprTreePtr newLHS = updateAttributesWithAlias(expr->getLHS(), tablesWithAliases);
+        ExprTreePtr newRHS = updateAttributesWithAlias(expr->getRHS(), tablesWithAliases);
+        return make_shared<PlusOp>(newLHS, newRHS);
+    } 
+	else if (dynamic_cast<MinusOp*>(expr.get()) != nullptr) {
+        ExprTreePtr newLHS = updateAttributesWithAlias(expr->getLHS(), tablesWithAliases);
+        ExprTreePtr newRHS = updateAttributesWithAlias(expr->getRHS(), tablesWithAliases);
+        return make_shared<MinusOp>(newLHS, newRHS);
+    } 
+	else if (dynamic_cast<TimesOp*>(expr.get()) != nullptr) {
+        ExprTreePtr newLHS = updateAttributesWithAlias(expr->getLHS(), tablesWithAliases);
+        ExprTreePtr newRHS = updateAttributesWithAlias(expr->getRHS(), tablesWithAliases);
+        return make_shared<TimesOp>(newLHS, newRHS);
+    } 
+	else if (dynamic_cast<DivideOp*>(expr.get()) != nullptr) {
+        ExprTreePtr newLHS = updateAttributesWithAlias(expr->getLHS(), tablesWithAliases);
+        ExprTreePtr newRHS = updateAttributesWithAlias(expr->getRHS(), tablesWithAliases);
+        return make_shared<DivideOp>(newLHS, newRHS);
+    } 
+	else if (dynamic_cast<NotOp*>(expr.get()) != nullptr) {
+        ExprTreePtr newChild = updateAttributesWithAlias(expr->getChild(), tablesWithAliases);
+        return make_shared<NotOp>(newChild);
+    } 
+	else if (dynamic_cast<SumOp*>(expr.get()) != nullptr) {
+        ExprTreePtr newChild = updateAttributesWithAlias(expr->getChild(), tablesWithAliases);
+        return make_shared<SumOp>(newChild);
+    } 
+	else if (dynamic_cast<AvgOp*>(expr.get()) != nullptr) {
+        ExprTreePtr newChild = updateAttributesWithAlias(expr->getChild(), tablesWithAliases);
+        return make_shared<AvgOp>(newChild);
+    } 
+	else {
+        return expr;
+    }
+}
+
+
+// Helper function to check if an expression only references a single table
+bool referencesOnlyTables(ExprTreePtr expr, const std::set<std::string> &aliases) {
+    if (!expr) return true;
+
+    if (expr->isId()) {
+        std::string id = expr->getId();
+        size_t pos = id.find('_');
+        if (pos != std::string::npos) {
+            std::string alias = id.substr(0, pos);
+            return aliases.count(alias) > 0;
+        }
+        return false;
     }
 
-    if (expr->getLHS()) {
-        updateAttributesWithAlias(expr->getLHS(), tablesWithAliases);
+    bool res = true;
+    if (expr->getLHS()) res &= referencesOnlyTables(expr->getLHS(), aliases);
+    if (expr->getRHS()) res &= referencesOnlyTables(expr->getRHS(), aliases);
+    if (expr->getChild()) res &= referencesOnlyTables(expr->getChild(), aliases);
+    return res;
+}
+
+// Check if expression is a join predicate (references tables from both sides)
+bool isJoinPredicate(ExprTreePtr expr, const std::set<std::string> &aliasesLeft, const std::set<std::string> &aliasesRight) {
+    if (!expr) return false;
+
+    std::set<std::string> referencedAliases;
+
+    // Helper function to collect all aliases in the expression
+    std::function<void(ExprTreePtr)> collectAliases = [&](ExprTreePtr e) {
+        if (!e) return;
+        if (e->isId()) {
+            std::string id = e->getId();
+            size_t pos = id.find('_');
+            if (pos != std::string::npos) {
+                std::string alias = id.substr(0, pos);
+                referencedAliases.insert(alias);
+            }
+        }
+        if (e->getLHS()) collectAliases(e->getLHS());
+        if (e->getRHS()) collectAliases(e->getRHS());
+        if (e->getChild()) collectAliases(e->getChild());
+    };
+
+    collectAliases(expr);
+
+    bool left = false, right = false;
+    for (const auto &alias : referencedAliases) {
+        if (aliasesLeft.count(alias)) left = true;
+        if (aliasesRight.count(alias)) right = true;
     }
-    if (expr->getRHS()) {
-        updateAttributesWithAlias(expr->getRHS(), tablesWithAliases);
-    }
-    if (expr->getChild()) {
-        updateAttributesWithAlias(expr->getChild(), tablesWithAliases);
-    }
+
+    return left && right;
 }
 	
 // builds and optimizes a logical query plan for a SFW query, returning the logical query plan
@@ -88,8 +196,7 @@ pair<LogicalOpPtr, double> SFWQuery::optimizeQueryPlan(map<string, MyDB_TablePtr
     MyDB_SchemaPtr totSchema = make_shared<MyDB_Schema>();
     map<string, MyDB_TablePtr> tablesWithAliases;
 
-
-    for (auto& tableAliasPair : this->tablesToProcess) {
+    for (auto& tableAliasPair : tablesToProcess) {
         string tableName = tableAliasPair.first;
         string alias = tableAliasPair.second;
 
@@ -105,12 +212,14 @@ pair<LogicalOpPtr, double> SFWQuery::optimizeQueryPlan(map<string, MyDB_TablePtr
 
     // 更新所有谓词中的属性名，添加别名前缀
     for (auto &expr : allDisjunctions) {
-        updateAttributesWithAlias(expr, tablesWithAliases);
+        cerr << "Original disjunction: " << expr->toString() << endl;
+        expr = updateAttributesWithAlias(expr, tablesWithAliases);
         cerr << "Updated disjunction: " << expr->toString() << endl;
     }
 
     return optimizeQueryPlan(tablesWithAliases, totSchema, allDisjunctions);
 }
+
 
 // builds and optimizes a logical query plan for a SFW query, returning the logical query plan
 pair <LogicalOpPtr, double> SFWQuery :: optimizeQueryPlan (map <string, MyDB_TablePtr> &allTables, 
@@ -127,19 +236,31 @@ pair <LogicalOpPtr, double> SFWQuery :: optimizeQueryPlan (map <string, MyDB_Tab
 		// return make_pair (res, best);
 
         auto tableEntry = *allTables.begin();
+        std::string alias = tableEntry.first;
         MyDB_TablePtr table = tableEntry.second;
 
-        // 获取统计信息并计算选择成本
-        MyDB_StatsPtr stats = make_shared<MyDB_Stats>(table);
-        stats = stats->costSelection(allDisjunctions);
+        cerr << "Debug: Applying selection predicates to stats:" << endl;
+        for (auto &pred : allDisjunctions) {
+            cerr << "Predicate: " << pred->toString() << endl;
+        }
 
-        vector<ExprTreePtr> predicatesForThisTable;
+        std::vector<ExprTreePtr> predicatesForThisTable;
 
-        // 过滤出仅与当前表相关的谓词
+        // Filter predicates relevant to this table
+        std::set<std::string> aliases = { alias };
         for (auto &expr : allDisjunctions) {
-            if (expr->referencesTable(table->getName())) {
+            if (referencesOnlyTables(expr, aliases)) {
                 predicatesForThisTable.push_back(expr);
             }
+        }
+
+        MyDB_StatsPtr stats = make_shared<MyDB_Stats>(table);
+        stats = stats->costSelection(predicatesForThisTable);
+
+        if (!stats) {
+            cerr << "Error: costSelection returned null stats for table " << table->getName() << endl;
+        } else {
+            cerr << "Debug: costSelection returned stats with tuple count: " << stats->getTupleCount() << endl;
         }
 
         res = make_shared<LogicalTableScan>(table, table, stats, predicatesForThisTable);
@@ -152,53 +273,94 @@ pair <LogicalOpPtr, double> SFWQuery :: optimizeQueryPlan (map <string, MyDB_Tab
 	// return make_pair (res, best);
 
     // 多表情况，初始化最优计划和成本
-    vector<string> tableNames;
-    for (const auto &entry : allTables) {
-        tableNames.push_back(entry.first);
-    }
+    cerr << "Debug: allTables contains the following keys:" << endl;
+	for (const auto &entry : allTables) {
+		cerr << "Key: " << entry.first << endl;
+	}
 
-    // 遍历所有可能的左右表分组
-    for (size_t i = 1; i < (1 << tableNames.size()) - 1; ++i) {
-        map<string, MyDB_TablePtr> leftTables, rightTables;
+	cerr << "Debug: Generating tableNames for allTables." << endl;
+	vector<string> tableNames;
+	for (const auto &entry : allTables) {
+		tableNames.push_back(entry.first);
+	}
 
-        cerr << "Left Tables:" << endl;
-        for (const auto& tablePair : leftTables) {
-            cerr << "Alias: " << tablePair.first 
-                << ", Table Name: " << tablePair.second->getName() << endl;
-        }
-        cerr << "Right Tables:" << endl;
-        for (const auto& tablePair : rightTables) {
-            cerr << "Alias: " << tablePair.first 
-                << ", Table Name: " << tablePair.second->getName() << endl;
-        }
+	cerr << "Debug: tableNames size: " << tableNames.size() << endl;
+	for (const auto &name : tableNames) {
+		cerr << "TableName: " << name << endl;
+	}
 
-        for (size_t j = 0; j < tableNames.size(); ++j) {
-            if (i & (1 << j)) {
-                leftTables[tableNames[j]] = allTables[tableNames[j]];
+	// 遍历所有可能的左右表分组
+	for (size_t i = 1; i < (1 << tableNames.size()) - 1; ++i) {
+		map<string, MyDB_TablePtr> leftTables, rightTables;
+
+		for (size_t j = 0; j < tableNames.size(); ++j) {
+			if (i & (1 << j)) {
+				leftTables[tableNames[j]] = allTables[tableNames[j]];
+			} else {
+				rightTables[tableNames[j]] = allTables[tableNames[j]];
+			}
+		}
+
+		cerr << "Debug: Left Tables for current split:" << endl;
+		for (const auto& tablePair : leftTables) {
+			cerr << "Alias: " << tablePair.first << ", Table Name: " << tablePair.second->getName() << endl;
+		}
+
+		cerr << "Debug: Right Tables for current split:" << endl;
+		for (const auto& tablePair : rightTables) {
+			cerr << "Alias: " << tablePair.first << ", Table Name: " << tablePair.second->getName() << endl;
+		}
+
+		// Extract aliases
+        std::set<std::string> leftAliases, rightAliases;
+        for (const auto &entry : leftTables) leftAliases.insert(entry.first);
+        for (const auto &entry : rightTables) rightAliases.insert(entry.first);
+
+        // Partition predicates
+        std::vector<ExprTreePtr> leftPredicates, rightPredicates, joinPredicates, remainingPredicates;
+
+        for (auto &expr : allDisjunctions) {
+            if (referencesOnlyTables(expr, leftAliases)) {
+                leftPredicates.push_back(expr);
+            } else if (referencesOnlyTables(expr, rightAliases)) {
+                rightPredicates.push_back(expr);
+            } else if (isJoinPredicate(expr, leftAliases, rightAliases)) {
+                joinPredicates.push_back(expr);
             } else {
-                rightTables[tableNames[j]] = allTables[tableNames[j]];
+                remainingPredicates.push_back(expr);
             }
         }
 
-        auto leftPlan = optimizeQueryPlan(leftTables, totSchema, allDisjunctions);
-        auto rightPlan = optimizeQueryPlan(rightTables, totSchema, allDisjunctions);
+        // Recursively optimize left and right plans with their respective predicates
+        auto leftPlan = optimizeQueryPlan(leftTables, totSchema, leftPredicates);
+        auto rightPlan = optimizeQueryPlan(rightTables, totSchema, rightPredicates);
 
-        // 获取 Join 的统计信息
-        MyDB_StatsPtr joinStats = leftPlan.first->getStats()->costJoin(allDisjunctions, rightPlan.first->getStats());
+        // Compute join statistics using joinPredicates
+        MyDB_StatsPtr joinStats = leftPlan.first->getStats()->costJoin(joinPredicates, rightPlan.first->getStats());
 
-        MyDB_TablePtr joinTable = make_shared<MyDB_Table>("joinResult", "tempStorage");
-        LogicalOpPtr joinOp = make_shared<LogicalJoin>(leftPlan.first, rightPlan.first, joinTable, allDisjunctions, joinStats);
 
-        double totalCost = leftPlan.second + rightPlan.second + joinStats->getTupleCount();
+		if (!joinStats) {
+			cerr << "Error: costJoin returned nullptr for join between stats with tuple counts: " 
+				 << leftPlan.first->getStats()->getTupleCount() << " and " 
+				 << rightPlan.first->getStats()->getTupleCount() << endl;
+		} else {
+			cerr << "Debug: Join stats tuple count: " << joinStats->getTupleCount() << endl;
+		}
 
-        if (totalCost < cost) {
-            res = joinOp;
-            cost = totalCost;
-        }
-    }
+		MyDB_TablePtr joinTable = make_shared<MyDB_Table>("joinResult", "tempStorage");
+		LogicalOpPtr joinOp = make_shared<LogicalJoin>(leftPlan.first, rightPlan.first, joinTable, allDisjunctions, joinStats);
 
-    return make_pair(res, cost);
+		double totalCost = leftPlan.second + rightPlan.second + joinStats->getTupleCount();
 
+		cerr << "Debug: TotalCost for current join: " << totalCost << endl;
+		if (totalCost < cost) {
+			cerr << "Debug: Found better plan with cost: " << totalCost << endl;
+			res = joinOp;
+			cost = totalCost;
+		}
+	}
+
+	return make_pair(res, cost);
 }
 
 void SFWQuery :: print () {
@@ -230,45 +392,6 @@ SFWQuery :: SFWQuery (struct ValueList *selectClause, struct FromList *fromClaus
 }
 
 SFWQuery::SFWQuery(ValueList* selectClause, FromList* fromClause, CNF* cnf) {
-    // debug用
-    // std::cerr << "Entering SFWQuery constructor.\n";
-
-    // if (!selectClause) {
-    //     std::cerr << "Error: selectClause is null.\n";
-    //     exit(1);
-    // }
-    // if (!fromClause) {
-    //     std::cerr << "Error: fromClause is null.\n";
-    //     exit(1);
-    // }
-    // if (!cnf) {
-    //     std::cerr << "Error: cnf is null.\n";
-    //     exit(1);
-    // }
-
-    // std::cerr << "fromClause->aliases size: " << fromClause->aliases.size() << "\n";
-    // for (const auto& aliasPair : fromClause->aliases) {
-    //     std::cerr << "Table: " << aliasPair.first << ", Alias: " << aliasPair.second << "\n";
-    // }
-
-    // std::cerr << "selectClause->valuesToCompute size: " << selectClause->valuesToCompute.size() << "\n";
-    // for (const auto& value : selectClause->valuesToCompute) {
-    //     if (value) {
-    //         std::cerr << "Value: " << value->toString() << "\n";
-    //     } else {
-    //         std::cerr << "Value: null pointer.\n";
-    //     }
-    // }
-
-    // std::cerr << "cnf->disjunctions size: " << cnf->disjunctions.size() << "\n";
-    // for (const auto& expr : cnf->disjunctions) {
-    //     if (expr) {
-    //         std::cerr << "Disjunction: " << expr->toString() << "\n";
-    //     } else {
-    //         std::cerr << "Disjunction: null pointer.\n";
-    //     }
-    // }
-
     valuesToSelect = selectClause->valuesToCompute;
     tablesToProcess = fromClause->aliases;
 	allDisjunctions = cnf->disjunctions;
