@@ -164,6 +164,9 @@ bool isJoinPredicate(ExprTreePtr expr, const std::set<std::string> &aliasesLeft,
 
     return left && right;
 }
+
+// Define the memoization map type
+typedef std::map<std::set<std::string>, std::pair<LogicalOpPtr, double>> MemoizationMap;
 	
 // builds and optimizes a logical query plan for a SFW query, returning the logical query plan
 pair<LogicalOpPtr, double> SFWQuery::optimizeQueryPlan(map<string, MyDB_TablePtr>& allTables) {
@@ -210,14 +213,121 @@ pair<LogicalOpPtr, double> SFWQuery::optimizeQueryPlan(map<string, MyDB_TablePtr
 
     vector<ExprTreePtr> allDisjunctions = this->allDisjunctions;
 
-    // 更新所有谓词中的属性名，添加别名前缀
+    // Update the attribute names in all predicates, adding alias prefixes
     for (auto &expr : allDisjunctions) {
         cerr << "Original disjunction: " << expr->toString() << endl;
         expr = updateAttributesWithAlias(expr, tablesWithAliases);
         cerr << "Updated disjunction: " << expr->toString() << endl;
     }
 
-    return optimizeQueryPlan(tablesWithAliases, totSchema, allDisjunctions);
+    // Initialize the memoization map
+    MemoizationMap memo;
+
+    std::function<pair<LogicalOpPtr, double>(map<string, MyDB_TablePtr>&, vector<ExprTreePtr>&)> recursiveOptimize;
+
+    recursiveOptimize = [&](map<string, MyDB_TablePtr>& currentTables, vector<ExprTreePtr>& currentDisjunctions) -> pair<LogicalOpPtr, double> {
+
+        std::set<std::string> tableAliases;
+        for (const auto &entry : currentTables) {
+            tableAliases.insert(entry.first);
+        }
+
+        // Check if we have already computed the best plan for this set of tables
+        if (memo.count(tableAliases)) {
+            return memo[tableAliases];
+        }
+
+        LogicalOpPtr res = nullptr;
+        double cost = 9e99;
+
+        if (currentTables.size() == 1) {
+            // Base case 
+            auto tableEntry = *currentTables.begin();
+            std::string alias = tableEntry.first;
+            MyDB_TablePtr table = tableEntry.second;
+
+            std::vector<ExprTreePtr> predicatesForThisTable;
+
+            // Filter predicates relevant to this table
+            std::set<std::string> aliases = { alias };
+            for (auto &expr : currentDisjunctions) {
+                if (referencesOnlyTables(expr, aliases)) {
+                    predicatesForThisTable.push_back(expr);
+                }
+            }
+
+            MyDB_StatsPtr stats = make_shared<MyDB_Stats>(table);
+            stats = stats->costSelection(predicatesForThisTable);
+
+            res = make_shared<LogicalTableScan>(table, table, stats, predicatesForThisTable);
+            cost = stats->getTupleCount();
+
+            // Store in memoization map
+            memo[tableAliases] = make_pair(res, cost);
+            return memo[tableAliases];
+        }
+
+        // We have at least one join
+        vector<string> tableNames;
+        for (const auto &entry : currentTables) {
+            tableNames.push_back(entry.first);
+        }
+
+        for (size_t i = 1; i < (1 << tableNames.size()) - 1; ++i) {
+            map<string, MyDB_TablePtr> leftTables, rightTables;
+
+            for (size_t j = 0; j < tableNames.size(); ++j) {
+                if (i & (1 << j)) {
+                    leftTables[tableNames[j]] = currentTables[tableNames[j]];
+                } else {
+                    rightTables[tableNames[j]] = currentTables[tableNames[j]];
+                }
+            }
+
+            // Extract aliases
+            std::set<std::string> leftAliases, rightAliases;
+            for (const auto &entry : leftTables) leftAliases.insert(entry.first);
+            for (const auto &entry : rightTables) rightAliases.insert(entry.first);
+
+            std::vector<ExprTreePtr> leftPredicates, rightPredicates, joinPredicates, remainingPredicates;
+
+            for (auto &expr : currentDisjunctions) {
+                if (referencesOnlyTables(expr, leftAliases)) {
+                    leftPredicates.push_back(expr);
+                } else if (referencesOnlyTables(expr, rightAliases)) {
+                    rightPredicates.push_back(expr);
+                } else if (isJoinPredicate(expr, leftAliases, rightAliases)) {
+                    joinPredicates.push_back(expr);
+                } else {
+                    remainingPredicates.push_back(expr);
+                }
+            }
+
+            // Recursively optimize left and right plans with their respective predicates
+            auto leftPlan = recursiveOptimize(leftTables, leftPredicates);
+            auto rightPlan = recursiveOptimize(rightTables, rightPredicates);
+
+            // Compute join statistics using joinPredicates
+            MyDB_StatsPtr joinStats = leftPlan.first->getStats()->costJoin(joinPredicates, rightPlan.first->getStats());
+
+            if (!joinStats) {
+                continue; 
+            }
+
+            double totalCost = leftPlan.second + rightPlan.second + joinStats->getTupleCount();
+
+            if (totalCost < cost) {
+                res = make_shared<LogicalJoin>(leftPlan.first, rightPlan.first, nullptr, joinPredicates, joinStats);
+                cost = totalCost;
+            }
+        }
+
+        // Store the best plan in the memoization map
+        memo[tableAliases] = make_pair(res, cost);
+        return memo[tableAliases];
+    };
+
+    return recursiveOptimize(tablesWithAliases, allDisjunctions);
 }
 
 
