@@ -170,7 +170,7 @@ typedef std::map<std::set<std::string>, std::pair<LogicalOpPtr, double>> Memoiza
 	
 // builds and optimizes a logical query plan for a SFW query, returning the logical query plan
 pair<LogicalOpPtr, double> SFWQuery::optimizeQueryPlan(map<string, MyDB_TablePtr>& allTables) {
-    DEBUG_MSG("Starting optimizeQueryPlan");
+    /*DEBUG_MSG("Starting optimizeQueryPlan");
 
     cerr << "Debug: allTables size: " << allTables.size() << endl;
     for (const auto& tablePair : allTables) {
@@ -194,7 +194,7 @@ pair<LogicalOpPtr, double> SFWQuery::optimizeQueryPlan(map<string, MyDB_TablePtr
         } else {
             cerr << "Table " << tableName << " is valid in allTables." << endl;
         }
-    }
+    }*/
 
     MyDB_SchemaPtr totSchema = make_shared<MyDB_Schema>();
     map<string, MyDB_TablePtr> tablesWithAliases;
@@ -215,17 +215,17 @@ pair<LogicalOpPtr, double> SFWQuery::optimizeQueryPlan(map<string, MyDB_TablePtr
 
     // Update the attribute names in all predicates, adding alias prefixes
     for (auto &expr : allDisjunctions) {
-        cerr << "Original disjunction: " << expr->toString() << endl;
+        //cerr << "Original disjunction: " << expr->toString() << endl;
         expr = updateAttributesWithAlias(expr, tablesWithAliases);
-        cerr << "Updated disjunction: " << expr->toString() << endl;
+        //cerr << "Updated disjunction: " << expr->toString() << endl;
     }
 
     // Initialize the memoization map
     MemoizationMap memo;
 
-    std::function<pair<LogicalOpPtr, double>(map<string, MyDB_TablePtr>&, vector<ExprTreePtr>&)> recursiveOptimize;
+    std::function<pair<LogicalOpPtr, double>(map<string, MyDB_TablePtr>&, MyDB_SchemaPtr&, vector<ExprTreePtr>&)> recursiveOptimize;
 
-    recursiveOptimize = [&](map<string, MyDB_TablePtr>& currentTables, vector<ExprTreePtr>& currentDisjunctions) -> pair<LogicalOpPtr, double> {
+    recursiveOptimize = [&](map<string, MyDB_TablePtr>& currentTables, MyDB_SchemaPtr& totSchema, vector<ExprTreePtr>& currentDisjunctions) -> pair<LogicalOpPtr, double> {
 
         std::set<std::string> tableAliases;
         for (const auto &entry : currentTables) {
@@ -250,16 +250,82 @@ pair<LogicalOpPtr, double> SFWQuery::optimizeQueryPlan(map<string, MyDB_TablePtr
 
             // Filter predicates relevant to this table
             std::set<std::string> aliases = { alias };
+            MyDB_SchemaPtr outputScheme = make_shared<MyDB_Schema>();
             for (auto &expr : currentDisjunctions) {
                 if (referencesOnlyTables(expr, aliases)) {
                     predicatesForThisTable.push_back(expr);
                 }
+                else {
+                    for (const auto& inputAtt : table->getSchema()->getAtts())
+                    {
+                        /*cout << "For shchema: " << endl;
+                        cout << "expr:" << expr->toString() << endl;
+                        cout << "inputAtt.first: " << inputAtt.first << endl;*/
+                        size_t pos = inputAtt.first.find('_');
+                        string result = inputAtt.first.substr(pos + 1);
+                        if (expr->referencesAtt(alias, result))
+                        {
+                            if (std::find(outputScheme->getAtts().begin(),
+                                outputScheme->getAtts().end(),
+                                std::make_pair(inputAtt.first, inputAtt.second))
+                                == outputScheme->getAtts().end()) {
+                                outputScheme->getAtts().emplace_back(inputAtt.first, inputAtt.second);
+                            }
+                        }
+                    }
+                }
+            }
+            for (auto& expr : groupingClauses) {
+                for (const auto& inputAtt : table->getSchema()->getAtts())
+                {
+                    /*cout << "For shchema: " << endl;
+                    cout << "expr:" << expr->toString() << endl;
+                    cout << "inputAtt.first: " << inputAtt.first << endl;*/
+                    size_t pos = inputAtt.first.find('_');
+                    string result = inputAtt.first.substr(pos + 1);
+                    if (expr->referencesAtt(alias, result))
+                    {
+                        if (std::find(outputScheme->getAtts().begin(),
+                            outputScheme->getAtts().end(),
+                            std::make_pair(inputAtt.first, inputAtt.second))
+                            == outputScheme->getAtts().end()) {
+                            outputScheme->getAtts().emplace_back(inputAtt.first, inputAtt.second);
+                        }
+                    }
+                }
+            }
+
+            for (auto& expr : valuesToSelect)
+            {
+                //if (expr->hasAgg()) {
+                    for (const auto& inputAtt : table->getSchema()->getAtts())
+                    {
+                        /*cout << "For agg shchema: " << endl;
+                        cout << "expr:" << expr->toString() << endl;
+                        cout << "inputAtt.first: " << inputAtt.first << endl;*/
+                        size_t pos = inputAtt.first.find('_');
+                        string result = inputAtt.first.substr(pos + 1);
+                        if (expr->referencesAtt(alias, result))
+                        {
+                            if (std::find(outputScheme->getAtts().begin(),
+                                outputScheme->getAtts().end(),
+                                std::make_pair(inputAtt.first, inputAtt.second))
+                                == outputScheme->getAtts().end()) {
+                                outputScheme->getAtts().emplace_back(inputAtt.first, inputAtt.second);
+                            }
+                        }
+                    }
+                //}
             }
 
             MyDB_StatsPtr stats = make_shared<MyDB_Stats>(table);
             stats = stats->costSelection(predicatesForThisTable);
 
-            res = make_shared<LogicalTableScan>(table, table, stats, predicatesForThisTable);
+            string tempTableName = "tempTable" + to_string(tempTableId);
+            tempTableId++;
+            MyDB_TablePtr selectTable = make_shared<MyDB_Table>(tempTableName, tempTableName + ".bin", outputScheme);
+
+            res = make_shared<LogicalTableScan>(table, selectTable, stats, predicatesForThisTable);
             cost = stats->getTupleCount();
 
             // Store in memoization map
@@ -272,6 +338,8 @@ pair<LogicalOpPtr, double> SFWQuery::optimizeQueryPlan(map<string, MyDB_TablePtr
         for (const auto &entry : currentTables) {
             tableNames.push_back(entry.first);
         }
+
+        MyDB_SchemaPtr joinSchema = make_shared<MyDB_Schema>();
 
         for (size_t i = 1; i < (1 << tableNames.size()) - 1; ++i) {
             map<string, MyDB_TablePtr> leftTables, rightTables;
@@ -292,20 +360,75 @@ pair<LogicalOpPtr, double> SFWQuery::optimizeQueryPlan(map<string, MyDB_TablePtr
             std::vector<ExprTreePtr> leftPredicates, rightPredicates, joinPredicates, remainingPredicates;
 
             for (auto &expr : currentDisjunctions) {
+                //cout << "lrj expr: " << expr->toString() << " " << referencesOnlyTables(expr, leftAliases) << referencesOnlyTables(expr, rightAliases) << isJoinPredicate(expr, leftAliases, rightAliases) << endl;
                 if (referencesOnlyTables(expr, leftAliases)) {
                     leftPredicates.push_back(expr);
                 } else if (referencesOnlyTables(expr, rightAliases)) {
                     rightPredicates.push_back(expr);
                 } else if (isJoinPredicate(expr, leftAliases, rightAliases)) {
+                    leftPredicates.push_back(expr);
+                    rightPredicates.push_back(expr);
                     joinPredicates.push_back(expr);
                 } else {
+                    leftPredicates.push_back(expr);
+                    rightPredicates.push_back(expr);
                     remainingPredicates.push_back(expr);
                 }
             }
 
             // Recursively optimize left and right plans with their respective predicates
-            auto leftPlan = recursiveOptimize(leftTables, leftPredicates);
-            auto rightPlan = recursiveOptimize(rightTables, rightPredicates);
+            auto leftPlan = recursiveOptimize(leftTables, totSchema, leftPredicates);
+            auto rightPlan = recursiveOptimize(rightTables, totSchema, rightPredicates);
+
+            /*for (auto leftTableName : leftTables)
+            {
+                for (auto att : leftTableName.second->getSchema()->getAtts())
+                {
+                    size_t pos = att.first.find('_');
+                    string result = att.first.substr(pos + 1);
+                    for (const auto& exp : joinPredicates) {
+                        if (exp->referencesAtt(leftTableName.first, result)) {
+                            for (const auto& exp : currentDisjunctions) {
+                                if (exp->referencesAtt(leftTableName.first, result)) {
+                                    if (std::find(joinSchema->getAtts().begin(),
+                                        joinSchema->getAtts().end(),
+                                        std::make_pair(att.first, att.second))
+                                        == joinSchema->getAtts().end()) {
+                                        joinSchema->getAtts().emplace_back(att.first, att.second);
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                }
+            }
+
+            for (auto rightTableName : rightTables)
+            {
+                for (auto att : rightTableName.second->getSchema()->getAtts())
+                {
+                    size_t pos = att.first.find('_');
+                    string result = att.first.substr(pos + 1);
+                    for (const auto& exp : joinPredicates) {
+                        if (exp->referencesAtt(rightTableName.first, result)) {
+                            for (const auto& exp : currentDisjunctions) {
+                                if (exp->referencesAtt(rightTableName.first, result)) {
+                                    if (std::find(joinSchema->getAtts().begin(),
+                                        joinSchema->getAtts().end(),
+                                        std::make_pair(att.first, att.second))
+                                        == joinSchema->getAtts().end()) {
+                                        joinSchema->getAtts().emplace_back(att.first, att.second);
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                }
+            }*/
 
             // Compute join statistics using joinPredicates
             MyDB_StatsPtr joinStats = leftPlan.first->getStats()->costJoin(joinPredicates, rightPlan.first->getStats());
@@ -316,8 +439,14 @@ pair<LogicalOpPtr, double> SFWQuery::optimizeQueryPlan(map<string, MyDB_TablePtr
 
             double totalCost = leftPlan.second + rightPlan.second + joinStats->getTupleCount();
 
+            // to change
+            string tempTableName = "tempTable" + to_string(tempTableId);
+            tempTableId++;
+            MyDB_TablePtr joinTable = make_shared<MyDB_Table>(tempTableName, tempTableName + ".bin", joinSchema);
+            //cerr << "Debug: joinTable name: " << joinTable->getName() << endl;
+
             if (totalCost < cost) {
-                res = make_shared<LogicalJoin>(leftPlan.first, rightPlan.first, nullptr, joinPredicates, joinStats);
+                res = make_shared<LogicalJoin>(leftPlan.first, rightPlan.first, joinTable, joinPredicates, joinStats);
                 cost = totalCost;
             }
         }
@@ -327,7 +456,7 @@ pair<LogicalOpPtr, double> SFWQuery::optimizeQueryPlan(map<string, MyDB_TablePtr
         return memo[tableAliases];
     };
 
-    return recursiveOptimize(tablesWithAliases, allDisjunctions);
+    return recursiveOptimize(tablesWithAliases, totSchema, allDisjunctions);
 }
 
 
@@ -430,11 +559,14 @@ pair <LogicalOpPtr, double> SFWQuery :: optimizeQueryPlan (map <string, MyDB_Tab
         std::vector<ExprTreePtr> leftPredicates, rightPredicates, joinPredicates, remainingPredicates;
 
         for (auto &expr : allDisjunctions) {
+            cout << "lrj expr: " << expr->toString() << " " << referencesOnlyTables(expr, leftAliases) << referencesOnlyTables(expr, rightAliases) << isJoinPredicate(expr, leftAliases, rightAliases) << endl;
             if (referencesOnlyTables(expr, leftAliases)) {
                 leftPredicates.push_back(expr);
             } else if (referencesOnlyTables(expr, rightAliases)) {
                 rightPredicates.push_back(expr);
             } else if (isJoinPredicate(expr, leftAliases, rightAliases)) {
+                leftPredicates.push_back(expr);
+                rightPredicates.push_back(expr);
                 joinPredicates.push_back(expr);
             } else {
                 remainingPredicates.push_back(expr);
@@ -457,7 +589,11 @@ pair <LogicalOpPtr, double> SFWQuery :: optimizeQueryPlan (map <string, MyDB_Tab
 			cerr << "Debug: Join stats tuple count: " << joinStats->getTupleCount() << endl;
 		}
 
-		MyDB_TablePtr joinTable = make_shared<MyDB_Table>("joinResult", "tempStorage");
+        string tempTableName = "tempTable" + to_string(tempTableId);
+        tempTableId++;
+		MyDB_TablePtr joinTable = make_shared<MyDB_Table>(tempTableName, tempTableName+".bin");
+        //cerr << "Debug: joinTable name: " << joinTable->getName() << endl;
+
 		LogicalOpPtr joinOp = make_shared<LogicalJoin>(leftPlan.first, rightPlan.first, joinTable, allDisjunctions, joinStats);
 
 		double totalCost = leftPlan.second + rightPlan.second + joinStats->getTupleCount();

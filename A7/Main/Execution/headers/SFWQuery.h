@@ -41,6 +41,8 @@ public:
 	void print ();
 
 	#include "FriendDecls.h"
+
+	int tempTableId = 0;
 };
 
 #endif
