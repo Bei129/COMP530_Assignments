@@ -26,6 +26,8 @@
         std::cerr.flush();                                                                  \
     } while (false)
 
+int SFWQuery::tempTableId = 0;
+
 ExprTreePtr updateAttributesWithAlias(ExprTreePtr expr, const std::map<std::string, MyDB_TablePtr> &tablesWithAliases) {
     if (!expr) return nullptr;
 
@@ -323,9 +325,9 @@ pair<LogicalOpPtr, double> SFWQuery::optimizeQueryPlan(map<string, MyDB_TablePtr
             MyDB_StatsPtr stats = make_shared<MyDB_Stats>(table);
             stats = stats->costSelection(predicatesForThisTable);
 
-            string tempTableName = "tempTable" + to_string(tempTableId);
-            tempTableId++;
-            MyDB_TablePtr selectTable = make_shared<MyDB_Table>(tempTableName, tempTableName + ".bin", outputScheme);
+            std::string tempTableName = "tempTable" + std::to_string(tempTableId++);
+            std::string fileName = "tempTableLoc" + std::to_string(tempTableId - 1) + ".bin";
+            MyDB_TablePtr selectTable = std::make_shared<MyDB_Table>(tempTableName, fileName, outputScheme);
 
             res = make_shared<LogicalTableScan>(table, selectTable, stats, predicatesForThisTable);
             cost = stats->getTupleCount();
@@ -460,9 +462,10 @@ pair<LogicalOpPtr, double> SFWQuery::optimizeQueryPlan(map<string, MyDB_TablePtr
             double totalCost = leftPlan.second + rightPlan.second + joinStats->getTupleCount();
 
             // to change
-            string tempTableName = "tempTable" + to_string(tempTableId);
-            tempTableId++;
-            MyDB_TablePtr joinTable = make_shared<MyDB_Table>(tempTableName, tempTableName + ".bin", joinSchema);
+            std::string tempTableName = "tempTable" + std::to_string(tempTableId++);
+            std::string fileName = "tempTableLoc" + std::to_string(tempTableId - 1) + ".bin";
+            MyDB_TablePtr joinTable = make_shared<MyDB_Table>(tempTableName, fileName, joinSchema);
+            
             //cerr << "Debug: joinTable name: " << joinTable->getName() << endl;
 
             if (totalCost < cost) {

@@ -42,7 +42,7 @@ public:
 
 	#include "FriendDecls.h"
 
-	int tempTableId = 0;
+	static int tempTableId;
 };
 
 #endif
