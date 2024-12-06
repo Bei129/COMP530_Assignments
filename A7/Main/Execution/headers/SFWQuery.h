@@ -16,6 +16,8 @@ private:
 	vector <ExprTreePtr> allDisjunctions;
 	vector <ExprTreePtr> groupingClauses;
 
+	static int tempTableId;
+
 public:
 	SFWQuery () {}
 
@@ -41,8 +43,6 @@ public:
 	void print ();
 
 	#include "FriendDecls.h"
-
-	int tempTableId = 0;
 };
 
 #endif
