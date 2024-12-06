@@ -223,6 +223,8 @@ pair<LogicalOpPtr, double> SFWQuery::optimizeQueryPlan(map<string, MyDB_TablePtr
     // Initialize the memoization map
     MemoizationMap memo;
 
+    int allTablesNum = tablesToProcess.size();
+
     std::function<pair<LogicalOpPtr, double>(map<string, MyDB_TablePtr>&, MyDB_SchemaPtr&, vector<ExprTreePtr>&)> recursiveOptimize;
 
     recursiveOptimize = [&](map<string, MyDB_TablePtr>& currentTables, MyDB_SchemaPtr& totSchema, vector<ExprTreePtr>& currentDisjunctions) -> pair<LogicalOpPtr, double> {
@@ -339,8 +341,6 @@ pair<LogicalOpPtr, double> SFWQuery::optimizeQueryPlan(map<string, MyDB_TablePtr
             tableNames.push_back(entry.first);
         }
 
-        MyDB_SchemaPtr joinSchema = make_shared<MyDB_Schema>();
-
         for (size_t i = 1; i < (1 << tableNames.size()) - 1; ++i) {
             map<string, MyDB_TablePtr> leftTables, rightTables;
 
@@ -351,6 +351,13 @@ pair<LogicalOpPtr, double> SFWQuery::optimizeQueryPlan(map<string, MyDB_TablePtr
                     rightTables[tableNames[j]] = currentTables[tableNames[j]];
                 }
             }
+
+            //MyDB_SchemaPtr joinSchema = make_shared<MyDB_Schema>();
+            MyDB_SchemaPtr joinSchema = totSchema;
+            if (leftTables.size() + rightTables.size() == allTablesNum) {
+                joinSchema = make_shared<MyDB_Schema>();
+            }
+            MyDB_SchemaPtr totSchema = make_shared<MyDB_Schema>();
 
             // Extract aliases
             std::set<std::string> leftAliases, rightAliases;
@@ -376,32 +383,39 @@ pair<LogicalOpPtr, double> SFWQuery::optimizeQueryPlan(map<string, MyDB_TablePtr
                 }
             }
 
-            // Recursively optimize left and right plans with their respective predicates
-            auto leftPlan = recursiveOptimize(leftTables, totSchema, leftPredicates);
-            auto rightPlan = recursiveOptimize(rightTables, totSchema, rightPredicates);
-
-            /*for (auto leftTableName : leftTables)
+            for (auto leftTableName : leftTables)
             {
                 for (auto att : leftTableName.second->getSchema()->getAtts())
                 {
                     size_t pos = att.first.find('_');
                     string result = att.first.substr(pos + 1);
-                    for (const auto& exp : joinPredicates) {
+                    for (const auto& exp : valuesToSelect) {
                         if (exp->referencesAtt(leftTableName.first, result)) {
-                            for (const auto& exp : currentDisjunctions) {
-                                if (exp->referencesAtt(leftTableName.first, result)) {
+                            /*for (const auto& exp : currentDisjunctions) {
+                                if (exp->referencesAtt(leftTableName.first, result)) {*/
                                     if (std::find(joinSchema->getAtts().begin(),
                                         joinSchema->getAtts().end(),
                                         std::make_pair(att.first, att.second))
                                         == joinSchema->getAtts().end()) {
                                         joinSchema->getAtts().emplace_back(att.first, att.second);
                                     }
-                                    break;
+                                    /*break;
+                                }
+                            }*/
+                        }
+                    }
+                    if (leftTables.size() + rightTables.size() != allTablesNum) {
+                        for (const auto& exp : joinPredicates) {
+                            if (exp->referencesAtt(leftTableName.first, result)) {
+                                if (std::find(joinSchema->getAtts().begin(),
+                                    joinSchema->getAtts().end(),
+                                    std::make_pair(att.first, att.second))
+                                    == joinSchema->getAtts().end()) {
+                                    totSchema->getAtts().emplace_back(att.first, att.second);
                                 }
                             }
                         }
                     }
-
                 }
             }
 
@@ -411,24 +425,30 @@ pair<LogicalOpPtr, double> SFWQuery::optimizeQueryPlan(map<string, MyDB_TablePtr
                 {
                     size_t pos = att.first.find('_');
                     string result = att.first.substr(pos + 1);
-                    for (const auto& exp : joinPredicates) {
+                    for (const auto& exp : valuesToSelect) {
+                        //cout << "valuesToSelect expr: " << exp->toString() << endl;
                         if (exp->referencesAtt(rightTableName.first, result)) {
-                            for (const auto& exp : currentDisjunctions) {
-                                if (exp->referencesAtt(rightTableName.first, result)) {
+                            //for (const auto& exp : currentDisjunctions) {
+                            //    //cout << "currentDisjunctions expr: " << exp->toString() << endl;
+                            //    if (exp->referencesAtt(rightTableName.first, result)) {
                                     if (std::find(joinSchema->getAtts().begin(),
                                         joinSchema->getAtts().end(),
                                         std::make_pair(att.first, att.second))
                                         == joinSchema->getAtts().end()) {
                                         joinSchema->getAtts().emplace_back(att.first, att.second);
                                     }
-                                    break;
-                                }
-                            }
+                                    //break;
+                                /*}
+                            }*/
                         }
                     }
 
                 }
-            }*/
+            }
+
+            // Recursively optimize left and right plans with their respective predicates
+            auto leftPlan = recursiveOptimize(leftTables, totSchema, leftPredicates);
+            auto rightPlan = recursiveOptimize(rightTables, totSchema, rightPredicates);
 
             // Compute join statistics using joinPredicates
             MyDB_StatsPtr joinStats = leftPlan.first->getStats()->costJoin(joinPredicates, rightPlan.first->getStats());
