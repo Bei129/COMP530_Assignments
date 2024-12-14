@@ -21,6 +21,7 @@ public:
 
 	// here are a bunch of self-explanatory operations that allow manipulation of expressions
 	virtual string toString () = 0;
+	virtual string toAttString() = 0;
 	virtual ~ExprTree () {}
 	virtual bool isEq () {return false;}
 	virtual bool isId () {return false;}
@@ -70,6 +71,10 @@ public:
 			return "bool[false]";
 		}
 	}	
+
+	string toAttString() {
+		return toString();
+	}
 };
 
 class DoubleLiteral : public ExprTree {
@@ -85,6 +90,10 @@ public:
 	string toString () {
 		return "double[" + to_string (myVal) + "]";
 	}	
+
+	string toAttString() {
+		return toString();
+	}
 
 	~DoubleLiteral () {}
 };
@@ -104,6 +113,10 @@ public:
 		return "int[" + to_string (myVal) + "]";
 	}
 
+	string toAttString() {
+		return toString();
+	}
+
 	~IntLiteral () {}
 };
 
@@ -120,6 +133,10 @@ public:
 
 	string toString () {
 		return "string[" + myVal + "]";
+	}
+
+	string toAttString() {
+		return toString();
 	}
 
 	~StringLiteral () {}
@@ -145,6 +162,10 @@ public:
 	string toString () {
 		return "[" + tableName + "_" + attName + "]";
 	}	
+
+	string toAttString() {
+		return "[" + attName + "]";
+	}
 
 	string getId () {
 		return tableName + "_" + attName;
@@ -182,6 +203,10 @@ public:
 	string toString () {
 		return "- (" + lhs->toString () + ", " + rhs->toString () + ")";
 	}	
+
+	string toAttString() {
+		return "- (" + lhs->toAttString() + ", " + rhs->toAttString() + ")";
+	}
 
 	string getId () {
 		string res = lhs->getId ();
@@ -244,6 +269,10 @@ public:
 		return "+ (" + lhs->toString () + ", " + rhs->toString () + ")";
 	}	
 
+	string toAttString() {
+		return "+ (" + lhs->toAttString() + ", " + rhs->toAttString() + ")";
+	}
+
 	bool referencesTable (string alias) {
 		return lhs->referencesTable (alias) || rhs->referencesTable (alias);
 	}
@@ -289,6 +318,10 @@ public:
 		return "* (" + lhs->toString () + ", " + rhs->toString () + ")";
 	}	
 
+	string toAttString() {
+		return "* (" + lhs->toAttString() + ", " + rhs->toAttString() + ")";
+	}
+
 	bool referencesTable (string alias) {
 		return lhs->referencesTable (alias) || rhs->referencesTable (alias);
 	}
@@ -317,6 +350,10 @@ public:
 	string toString () {
 		return "/ (" + lhs->toString () + ", " + rhs->toString () + ")";
 	}	
+
+	string toAttString() {
+		return "/ (" + lhs->toAttString() + ", " + rhs->toAttString() + ")";
+	}
 
 	string getId () {
 		string res = lhs->getId ();
@@ -362,6 +399,10 @@ public:
 	string toString () {
 		return "> (" + lhs->toString () + ", " + rhs->toString () + ")";
 	}	
+
+	string toAttString() {
+		return "> (" + lhs->toAttString() + ", " + rhs->toAttString() + ")";
+	}
 
 	bool isLTGT () {
 		return true;
@@ -415,6 +456,10 @@ public:
 	string toString () {
 		return "< (" + lhs->toString () + ", " + rhs->toString () + ")";
 	}	
+
+	string toAttString() {
+		return "< (" + lhs->toAttString() + ", " + rhs->toAttString() + ")";
+	}
 
 	bool isLTGT () {
 		return true;
@@ -493,6 +538,10 @@ public:
 		return "!= (" + lhs->toString () + ", " + rhs->toString () + ")";
 	}	
 
+	string toAttString() {
+		return "!= (" + lhs->toAttString() + ", " + rhs->toAttString() + ")";
+	}
+
 	~NeqOp () {}
 };
 
@@ -513,6 +562,10 @@ public:
 	string toString () {
 		return "|| (" + lhs->toString () + ", " + rhs->toString () + ")";
 	}	
+
+	string toAttString() {
+		return "|| (" + lhs->toAttString() + ", " + rhs->toAttString() + ")";
+	}
 
 	bool isOr () {
 		return true;
@@ -587,6 +640,10 @@ public:
 		return "== (" + lhs->toString () + ", " + rhs->toString () + ")";
 	}	
 
+	string toAttString() {
+		return "== (" + lhs->toAttString() + ", " + rhs->toAttString() + ")";
+	}
+
 	bool referencesTable (string alias) {
 		return lhs->referencesTable (alias) || rhs->referencesTable (alias);
 	}
@@ -626,6 +683,10 @@ public:
 		return "!(" + child->toString () + ")";
 	}	
 
+	string toAttString() {
+		return "!(" + child->toAttString() + ")";
+	}
+
 	bool referencesTable (string alias) {
 		return child->referencesTable (alias);
 	}
@@ -652,6 +713,10 @@ public:
 	string toString () {
 		return "sum(" + child->toString () + ")";
 	}	
+
+	string toAttString() {
+		return "sum(" + child->toAttString() + ")";
+	}
 
 	ExprTreePtr &getChild () {
 		return child;
@@ -692,6 +757,10 @@ public:
 	string toString () {
 		return "avg(" + child->toString () + ")";
 	}	
+
+	string toAttString() {
+		return "avg(" + child->toAttString() + ")";
+	}
 
 	bool isAvg () {
 		return true;
