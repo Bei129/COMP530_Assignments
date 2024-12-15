@@ -121,26 +121,26 @@ MyDB_TableReaderWriterPtr LogicalJoin :: execute (map <string, MyDB_TableReaderW
     string selectionPredStr = generateSelectionPredicateJoin(outputSelectionPredicate);
     vector <pair <string, MyDB_AttTypePtr>> leftAtts = leftTable->getTable()->getSchema()->getAtts();
     vector <pair <string, MyDB_AttTypePtr>> rightAtts = rightTable->getTable()->getSchema()->getAtts();
-    cout << "DEBUG: leftAtts:" << endl;
+    //cout << "DEBUG: leftAtts:" << endl;
     for (const auto& att : leftAtts) {
         string attName = att.first;
         string attType = att.second->toString();
-        cout << "  Attribute Name: " << attName << ", Attribute Type: " << attType << endl;
+        //cout << "  Attribute Name: " << attName << ", Attribute Type: " << attType << endl;
     }
 
-    cout << "DEBUG: rightAtts:" << endl;
+    //cout << "DEBUG: rightAtts:" << endl;
     for (const auto& att : rightAtts) {
         string attName = att.first;
         string attType = att.second->toString();
-        cout << "  Attribute Name: " << attName << ", Attribute Type: " << attType << endl;
+        //cout << "  Attribute Name: " << attName << ", Attribute Type: " << attType << endl;
     }
 
 
     //pair <string, string> equalityCheck = make_pair("", "");
     vector<pair<string, string>> equalityChecks;
-    cout << "DEBUG: outputSelectionPredicate:" << endl;
+    //cout << "DEBUG: outputSelectionPredicate:" << endl;
     for (auto expr : outputSelectionPredicate) {
-        cout << "  " << expr->toString() << endl;
+        //cout << "  " << expr->toString() << endl;
         if (expr->getLHS() && expr->getRHS())
         {
             if (expr->isEq()) {
@@ -163,17 +163,16 @@ MyDB_TableReaderWriterPtr LogicalJoin :: execute (map <string, MyDB_TableReaderW
     if (min(leftTableSize, rightTableSize) > bufferNumPages / 2) {
         SortMergeJoin sortMergeJoin(leftTable, rightTable, outputTable, selectionPredStr, projections, equalityChecks.empty()?make_pair("",""):equalityChecks[0], leftSelectionPredicate, rightSelectionPredicate);
         sortMergeJoin.run();
-        cout << "DEBUG: Sort merge join" << endl;
+        //cout << "DEBUG: Sort merge join" << endl;
     }
     else {
         ScanJoin scanJoin(leftTable, rightTable, outputTable, selectionPredStr, projections, equalityChecks, leftSelectionPredicate, rightSelectionPredicate);
         scanJoin.run();
-        cout << "DEBUG: Scan join" << endl;
+        //cout << "DEBUG: Scan join" << endl;
     }
     
-    MyDB_BufferManagerPtr bufferMgr = leftTable->getBufferMgr();
-    bufferMgr->killTable(leftTable->getTable());
-    bufferMgr->killTable(rightTable->getTable());
+    leftTable->getBufferMgr()->killTable(leftTable->getTable());
+    rightTable->getBufferMgr()->killTable(rightTable->getTable());
 
 	return outputTable;
 }
