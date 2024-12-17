@@ -344,67 +344,113 @@ Found 161 records in all.
 ```sql
 [<MyDB_GroupAtt0, string>, <MyDB_GroupAtt1, string>, <MyDB_AggAtt0, int>, <MyDB_CntAtt, int>]
 |c.c_name          |n.n_name          |agg.sum_0         |
-|Customer#000000011|UNITED KINGDOM    |2                 |
-|Customer#000000013|CANADA            |2                 |
-|Customer#000000022|CANADA            |6                 |
-|Customer#000000025|JAPAN             |2                 |
-|Customer#000000026|RUSSIA            |8                 |
-|Customer#000000031|UNITED KINGDOM    |2                 |
-|Customer#000000040|CANADA            |2                 |
-|Customer#000000043|ROMANIA           |6                 |
-|Customer#000000044|MOZAMBIQUE        |4                 |
-|Customer#000000046|FRANCE            |2                 |
-|Customer#000000047|BRAZIL            |2                 |
-|Customer#000000064|CANADA            |6                 |
-|Customer#000000067|INDONESIA         |4                 |
-|Customer#000000070|RUSSIA            |2                 |
-|Customer#000000076|ALGERIA           |2                 |
-|Customer#000000079|MOROCCO           |2                 |
-|Customer#000000086|ALGERIA           |6                 |
-|Customer#000000092|BRAZIL            |4                 |
-|Customer#000000094|INDONESIA         |12                |
+|Customer#000000004|EGYPT             |2                 |
+|Customer#000000007|CHINA             |6                 |
+|Customer#000000010|ETHIOPIA          |2                 |
+|Customer#000000011|UNITED KINGDOM    |4                 |
+|Customer#000000013|CANADA            |5                 |
+|Customer#000000016|IRAN              |3                 |
+|Customer#000000019|CHINA             |3                 |
+|Customer#000000022|CANADA            |5                 |
+|Customer#000000023|CANADA            |2                 |
+|Customer#000000025|JAPAN             |6                 |
+|Customer#000000026|RUSSIA            |4                 |
+|Customer#000000028|INDIA             |5                 |
+|Customer#000000029|ALGERIA           |4                 |
+|Customer#000000031|UNITED KINGDOM    |1                 |
+|Customer#000000034|MOROCCO           |8                 |
+|Customer#000000037|INDIA             |1                 |
+|Customer#000000040|CANADA            |3                 |
+|Customer#000000041|IRAN              |1                 |
+|Customer#000000043|ROMANIA           |5                 |
+|Customer#000000044|MOZAMBIQUE        |7                 |
+|Customer#000000046|FRANCE            |1                 |
+|Customer#000000047|BRAZIL            |1                 |
+|Customer#000000049|IRAN              |2                 |
+|Customer#000000055|IRAN              |3                 |
+|Customer#000000061|PERU              |1                 |
+|Customer#000000062|GERMANY           |3                 |
+|Customer#000000064|CANADA            |8                 |
+|Customer#000000065|UNITED KINGDOM    |1                 |
+|Customer#000000067|INDONESIA         |2                 |
+|Customer#000000068|JAPAN             |1                 |
+|Customer#000000070|RUSSIA            |7                 |
+|Customer#000000073|ALGERIA           |6                 |
+|Customer#000000074|EGYPT             |3                 |
+|Customer#000000076|ALGERIA           |6                 |
+|Customer#000000079|MOROCCO           |1                 |
+|Customer#000000080|ALGERIA           |2                 |
+|Customer#000000082|CHINA             |2                 |
+|Customer#000000085|ETHIOPIA          |1                 |
+|Customer#000000086|ALGERIA           |4                 |
+|Customer#000000088|MOZAMBIQUE        |1                 |
+|Customer#000000091|INDIA             |3                 |
+|Customer#000000092|BRAZIL            |7                 |
+|Customer#000000094|INDONESIA         |6                 |
 |Customer#000000097|PERU              |2                 |
-|Customer#000000100|SAUDI ARABIA      |18                |
-|Customer#000000103|INDONESIA         |10                |
+|Customer#000000100|SAUDI ARABIA      |10                |
+|Customer#000000103|INDONESIA         |5                 |
 |Customer#000000106|ARGENTINA         |4                 |
+|Customer#000000107|MOROCCO           |1                 |
+|Customer#000000109|MOZAMBIQUE        |2                 |
 |Customer#000000112|ROMANIA           |2                 |
-|Customer#000000115|INDIA             |4                 |
-|Customer#000000116|MOZAMBIQUE        |2                 |
-|Customer#000000121|PERU              |4                 |
-|Customer#000000125|ROMANIA           |2                 |
-|Customer#000000127|VIETNAM           |2                 |
-|Customer#000000128|EGYPT             |4                 |
-|Customer#000000133|PERU              |2                 |
-|Customer#000000136|GERMANY           |8                 |
-|Customer#000000137|MOZAMBIQUE        |2                 |
-|Customer#000000149|ROMANIA           |4                 |
-|Customer#000000151|ROMANIA           |4                 |
-|Customer#000000157|MOROCCO           |4                 |
-|Customer#000000161|GERMANY           |2                 |
-|Customer#000000163|VIETNAM           |8                 |
-|Customer#000000164|EGYPT             |4                 |
-|Customer#000000169|CHINA             |2                 |
-|Customer#000000170|MOROCCO           |4                 |
-|Customer#000000173|INDONESIA         |2                 |
-|Customer#000000176|JORDAN            |4                 |
-|Customer#000000181|INDONESIA         |4                 |
-|Customer#000000185|ETHIOPIA          |4                 |
-|Customer#000000187|EGYPT             |2                 |
-|Customer#000000188|ETHIOPIA          |2                 |
-|Customer#000000193|UNITED KINGDOM    |2                 |
-|Customer#000000194|MOZAMBIQUE        |8                 |
-|Customer#000000197|ARGENTINA         |4                 |
-Found 36447 records in all.
+Found 72172 records in all.
 ```
 
 ### 12.sql
 
 ```sql
 [<MyDB_GroupAtt0, string>, <MyDB_GroupAtt1, string>, <MyDB_AggAtt0, int>, <MyDB_CntAtt, int>]
-|c2.c_name         |p.p_name          |agg.sum_0         |
-|Customer#000149624|khaki deep lace mo|1                 |
-|Customer#000149673|maroon cornflower |2                 |
-|Customer#000149681|honeydew pale brow|8                 |
-|Customer#000149777|khaki deep lace mo|2                 |
-Found 4 records in all.
+|c2.c_name         |p.p_name          |agg.sum_1         |
+|Customer#000000091|thistle brown deep|1                 |
+|Customer#000000295|burlywood aquamari|1                 |
+|Customer#000000434|orange cream sprin|1                 |
+|Customer#000000442|cream tan peru alm|1                 |
+|Customer#000000472|moccasin rose sadd|1                 |
+|Customer#000000586|cyan sky papaya mo|1                 |
+|Customer#000000638|khaki orange seash|1                 |
+|Customer#000000797|moccasin rose sadd|1                 |
+|Customer#000000851|salmon olive lace |1                 |
+|Customer#000000871|moccasin rose sadd|1                 |
+|Customer#000000913|deep antique burni|1                 |
+|Customer#000001076|metallic blanched |1                 |
+|Customer#000001216|black peach light |1                 |
+|Customer#000001247|khaki orange seash|1                 |
+|Customer#000001264|goldenrod saddle c|1                 |
+|Customer#000001265|forest lawn golden|1                 |
+|Customer#000001291|peach cornsilk blu|1                 |
+|Customer#000001352|cyan sky papaya mo|1                 |
+|Customer#000001420|smoke aquamarine t|1                 |
+|Customer#000001453|chiffon chartreuse|1                 |
+|Customer#000001468|frosted sandy grey|1                 |
+|Customer#000001562|aquamarine goldenr|1                 |
+|Customer#000001820|goldenrod saddle c|1                 |
+|Customer#000001852|blanched rosy fire|1                 |
+|Customer#000001999|burlywood peru hot|1                 |
+|Customer#000002086|red antique navajo|1                 |
+|Customer#000002144|yellow ivory blanc|1                 |
+|Customer#000002279|drab frosted linen|1                 |
+|Customer#000002308|rose papaya smoke |1                 |
+|Customer#000002315|maroon cornflower |1                 |
+|Customer#000002515|red bisque khaki f|1                 |
+|Customer#000002560|khaki orange seash|1                 |
+|Customer#000002774|chiffon chartreuse|1                 |
+|Customer#000003038|khaki orange seash|1                 |
+|Customer#000003248|red bisque khaki f|1                 |
+|Customer#000003355|honeydew pale brow|1                 |
+|Customer#000003550|black peach light |1                 |
+|Customer#000003650|misty lace goldenr|1                 |
+|Customer#000003671|frosted medium min|1                 |
+|Customer#000003854|peach cornsilk blu|1                 |
+|Customer#000003874|lemon saddle mediu|1                 |
+|Customer#000003889|lemon tomato antiq|1                 |
+|Customer#000004174|forest violet lave|1                 |
+|Customer#000004219|maroon cornflower |1                 |
+|Customer#000004327|deep antique burni|1                 |
+|Customer#000004328|cream purple pink |1                 |
+|Customer#000004390|floral thistle fro|1                 |
+|Customer#000004444|aquamarine goldenr|1                 |
+|Customer#000004471|peach midnight sie|1                 |
+|Customer#000004538|yellow ivory blanc|1                 |
+Found 1581 records in all.
 ```
