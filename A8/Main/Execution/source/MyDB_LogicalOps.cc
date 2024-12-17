@@ -84,10 +84,14 @@ MyDB_TableReaderWriterPtr LogicalJoin :: execute (map <string, MyDB_TableReaderW
     string leftSelectionPredicate = "bool[true]";
     string rightSelectionPredicate = "bool[true]";
 
+    bool leftScanFlag = false;
+    bool rightScanFlag = false;
+
     if (leftInputOp->isTableScan()) {
         string leftTableName = leftInputOp->toTableScan()->getInputTableName();
         leftSelectionPredicate = generateSelectionPredicateJoin(leftInputOp->toTableScan()->getOutputSelectionPredicate());
         leftTable = make_shared<MyDB_TableReaderWriter>(leftInputOp->toTableScan()->getInputTable(), allTableReaderWriters[leftTableName]->getBufferMgr());
+        leftScanFlag = true;
     }
     else {
         leftTable = leftInputOp->execute(allTableReaderWriters, allBPlusReaderWriters);
@@ -97,6 +101,7 @@ MyDB_TableReaderWriterPtr LogicalJoin :: execute (map <string, MyDB_TableReaderW
         string rightTableName = rightInputOp->toTableScan()->getInputTableName();
         rightSelectionPredicate = generateSelectionPredicateJoin(rightInputOp->toTableScan()->getOutputSelectionPredicate());
         rightTable = make_shared<MyDB_TableReaderWriter>(rightInputOp->toTableScan()->getInputTable(), allTableReaderWriters[rightTableName]->getBufferMgr());
+        rightScanFlag = true;
     }
     else {
         rightTable = rightInputOp->execute(allTableReaderWriters, allBPlusReaderWriters);
@@ -171,8 +176,8 @@ MyDB_TableReaderWriterPtr LogicalJoin :: execute (map <string, MyDB_TableReaderW
         //cout << "DEBUG: Scan join" << endl;
     }
     
-    leftTable->getBufferMgr()->killTable(leftTable->getTable());
-    rightTable->getBufferMgr()->killTable(rightTable->getTable());
+    if (!leftScanFlag) leftTable->getBufferMgr()->killTable(leftTable->getTable());
+    if (!rightScanFlag) rightTable->getBufferMgr()->killTable(rightTable->getTable());
 
 	return outputTable;
 }
